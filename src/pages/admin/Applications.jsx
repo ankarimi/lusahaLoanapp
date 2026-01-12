@@ -10,7 +10,9 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
+  addDoc,
 } from "firebase/firestore";
+import { WHATSAPP_NUMBER } from "../../config/support";
 
 export default function Applications() {
   const [applications, setApplications] = useState([]);
@@ -52,6 +54,20 @@ export default function Applications() {
         approverId: auth.currentUser?.uid || null,
         dueDate: due,
       });
+
+      // Write audit log
+      try {
+        await addDoc(collection(db, "audit_logs"), {
+          type: "loan_approved",
+          loanId: app.id,
+          amount: app.amount,
+          approverId: auth.currentUser?.uid || null,
+          createdAt: serverTimestamp(),
+        });
+      } catch (logErr) {
+        console.error("Failed to write audit log", logErr);
+      }
+
       alert("Loan approved.");
     } catch (err) {
       console.error(err);
@@ -68,6 +84,20 @@ export default function Applications() {
         reviewedAt: serverTimestamp(),
         reviewerId: auth.currentUser?.uid || null,
       });
+
+      // Write audit log
+      try {
+        await addDoc(collection(db, "audit_logs"), {
+          type: "loan_declined",
+          loanId: app.id,
+          amount: app.amount,
+          reviewerId: auth.currentUser?.uid || null,
+          createdAt: serverTimestamp(),
+        });
+      } catch (logErr) {
+        console.error("Failed to write audit log", logErr);
+      }
+
       alert("Loan declined.");
     } catch (err) {
       console.error(err);
@@ -105,8 +135,19 @@ export default function Applications() {
           </div>
 
           <div className="flex gap-2 pt-2">
-            <button className="flex-1 btn-secondary" onClick={() => {}}>
-              View
+            <button
+              className="flex-1 btn-secondary"
+              onClick={() => {
+                // Open WhatsApp review link if available, otherwise construct one
+                const url =
+                  app.reviewWhatsAppUrl ||
+                  `https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+                    `Application ${app.id} - KSH ${app.amount} - ${window.location.origin}/admin/applications/${app.id}`
+                  )}`;
+                window.open(url, "_blank");
+              }}
+            >
+              Open WhatsApp
             </button>
             <button
               className="flex-1 bg-accent text-black p-2 rounded"

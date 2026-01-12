@@ -8,7 +8,9 @@ import {
   serverTimestamp,
   doc,
   getDoc,
+  updateDoc,
 } from "firebase/firestore";
+import { WHATSAPP_NUMBER } from "../../config/support";
 
 export default function Apply() {
   const navigate = useNavigate();
@@ -125,9 +127,17 @@ export default function Apply() {
     setLoading(true);
 
     try {
+      // Fetch the user's profile snapshot to store with the application
+      const userRef = doc(db, "users", auth.currentUser.uid);
+      const userSnap = await getDoc(userRef);
+      const applicantProfile = userSnap.exists() ? userSnap.data() : null;
+
       const loanRef = collection(db, "loans");
-      await addDoc(loanRef, {
+      const docRef = await addDoc(loanRef, {
         userId: auth.currentUser.uid,
+        applicantName: auth.currentUser.displayName || null,
+        applicantEmail: auth.currentUser.email || null,
+        applicantProfile,
         amount: Number(amount),
         durationDays: Number(duration),
         purpose,
@@ -139,8 +149,30 @@ export default function Apply() {
         phoneUsed: phone,
       });
 
+      // Prepare review message and send to WhatsApp for quick admin review
+      try {
+        const loanId = docRef.id;
+        const reviewLink = `${window.location.origin}/admin/applications/${loanId}`;
+        const message = `New loan application:%0A%0AName: ${auth.currentUser.displayName || 'N/A'}%0AEmail: ${auth.currentUser.email}%0AAmount: KSH ${amount}%0ADuration: ${duration} days%0APurpose: ${purpose}%0ATotal: KSH ${totalRepayment}%0APhone: ${phone}%0AApplication ID: ${loanId}%0AReview: ${reviewLink}`;
+        const number = WHATSAPP_NUMBER.replace(/\D/g, "");
+        const waUrl = `https://wa.me/${number}?text=${message}`;
+
+        // Open WhatsApp Web / App in a new tab for immediate review
+        window.open(waUrl, "_blank");
+
+        // Persist review metadata to the loan doc
+        await updateDoc(doc(db, "loans", docRef.id), {
+          reviewSentToWhatsApp: true,
+          reviewWhatsAppUrl: waUrl,
+          reviewSentAt: serverTimestamp(),
+          reviewTo: WHATSAPP_NUMBER,
+        });
+      } catch (waErr) {
+        console.warn("WhatsApp notification failed", waErr);
+      }
+
       // Inform user
-      alert("Loan application submitted and is under review by admin.");
+      alert("Loan application submitted and sent for admin review.");
       navigate("/app/home");
     } catch (err) {
       console.error(err);

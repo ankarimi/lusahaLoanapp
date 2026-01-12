@@ -8,7 +8,8 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { auth, db } from "../firebase";
-import { doc, setDoc, getDoc } from "firebase/firestore";
+import { doc, setDoc, getDoc, collection, addDoc } from "firebase/firestore";
+import { SUPPORT_EMAIL } from "../config/support";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -30,6 +31,7 @@ export default function Register() {
   const [animate, setAnimate] = useState(false);
   const [adIndex, setAdIndex] = useState(0);
   const [showBiometrics, setShowBiometrics] = useState(false);
+  const [isAdminRegister, setIsAdminRegister] = useState(false);
 
   useEffect(() => {
     setShowBiometrics(localStorage.getItem("biometricsEnabled") === "true");
@@ -78,16 +80,32 @@ export default function Register() {
   const saveUserToDb = async (user, additionalData = {}) => {
     const userDoc = await getDoc(doc(db, "users", user.uid));
     if (!userDoc.exists()) {
+      const role = additionalData.isAdmin ? "admin" : "customer";
       await setDoc(doc(db, "users", user.uid), {
         name: additionalData.name || user.displayName || "User",
         email: user.email,
         phone: additionalData.phone || user.phoneNumber || "",
-        role: "customer",
+        role,
         createdAt: Date.now(),
         authProvider: additionalData.provider || "email",
         limit: 0, // Default starting limit (admins assign limits manually)
         trustScore: 10,
       });
+
+      // If admin was registered, write an audit log entry
+      if (role === "admin") {
+        try {
+          await addDoc(collection(db, "audit_logs"), {
+            type: "admin_signup",
+            userId: user.uid,
+            email: user.email,
+            createdAt: Date.now(),
+            note: "Admin account created via self-service sign-up",
+          });
+        } catch (err) {
+          console.error("Failed to write audit log for admin signup", err);
+        }
+      }
     }
   };
 
@@ -104,6 +122,13 @@ export default function Register() {
     setLoading(true);
 
     try {
+      // If registering as admin, ensure email matches the designated support/admin email
+      if (isAdminRegister && formData.email !== SUPPORT_EMAIL) {
+        setError("Only the designated support email may register as admin.");
+        setLoading(false);
+        return;
+      }
+
       const cred = await createUserWithEmailAndPassword(
         auth,
         formData.email,
@@ -114,9 +139,11 @@ export default function Register() {
         name: formData.name,
         phone: formData.phone,
         provider: "email",
+        isAdmin: isAdminRegister,
       });
       // Create session token
       createSession(cred.user);
+      // Admins need to verify email first
       navigate("/verify-email");
     } catch (err) {
       console.error(err);
@@ -441,6 +468,26 @@ export default function Register() {
               Sign In
             </button>
           </p>
+
+          <div className="mt-4 text-center">
+            <button
+              className="text-sm font-semibold text-accent hover:underline"
+              type="button"
+              onClick={() => {
+                setFormData({ ...formData, email: SUPPORT_EMAIL });
+                setIsAdminRegister(true);
+                setTimeout(() => {
+                  const pwd = document.querySelector('input[type="password"]');
+                  if (pwd) pwd.focus();
+                }, 50);
+              }}
+            >
+              Sign up as admin
+            </button>
+            {isAdminRegister && (
+              <p className="mt-2 text-xs text-slate-400">Only {SUPPORT_EMAIL} is permitted to register as admin. After signup you will be sent a verification email — verify to access the admin dashboard.</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

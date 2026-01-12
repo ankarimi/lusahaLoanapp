@@ -5,8 +5,10 @@ import {
   GoogleAuthProvider,
   GithubAuthProvider,
   signInWithPopup,
+  sendEmailVerification,
 } from "firebase/auth";
 import { auth } from "../firebase";
+import { SUPPORT_EMAIL } from "../config/support";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -24,6 +26,7 @@ export default function Login() {
   const [animate, setAnimate] = useState(false);
   const [adIndex, setAdIndex] = useState(0);
   const [showBiometrics, setShowBiometrics] = useState(false);
+  const [isAdminFlow, setIsAdminFlow] = useState(false);
 
   useEffect(() => {
     setShowBiometrics(localStorage.getItem("biometricsEnabled") === "true");
@@ -72,10 +75,30 @@ export default function Login() {
 
     try {
       const cred = await signInWithEmailAndPassword(auth, email, password);
+
+      // Admin flow: only allow the configured SUPPORT_EMAIL as admin
+      if (email === SUPPORT_EMAIL && !cred.user.emailVerified) {
+        await sendEmailVerification(cred.user);
+        alert(
+          "Verification email sent to admin address. Please verify your email to access the admin portal."
+        );
+        navigate("/verify-email");
+        return;
+      }
+
+      if (email === SUPPORT_EMAIL && cred.user.emailVerified) {
+        // Admin is verified — create session and send to admin dashboard
+        createSession(cred.user);
+        navigate("/admin/dashboard");
+        return;
+      }
+
+      // Normal user flow
       if (!cred.user.emailVerified) {
         navigate("/verify-email");
         return;
       }
+
       // Create session token
       createSession(cred.user);
       navigate("/app/home");
@@ -314,6 +337,27 @@ export default function Login() {
             <div className="relative flex justify-center text-xs uppercase tracking-widest text-slate-400 bg-slate-50 px-4">
               Fast Access
             </div>
+          </div>
+
+          {/* Admin shortcut — prefills admin email */}
+          <div className="text-center mb-4">
+            <button
+              type="button"
+              onClick={() => {
+                setEmail(SUPPORT_EMAIL);
+                setIsAdminFlow(true);
+                setTimeout(() => {
+                  const pwd = document.querySelector('input[type="password"]');
+                  if (pwd) pwd.focus();
+                }, 50);
+              }}
+              className="text-sm font-semibold text-accent hover:underline"
+            >
+              Login as admin
+            </button>
+            {isAdminFlow && (
+              <p className="text-xs text-slate-400 mt-2">Only verified admin ({SUPPORT_EMAIL}) can access admin portal. If unverified, a verification email will be sent on login.</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">

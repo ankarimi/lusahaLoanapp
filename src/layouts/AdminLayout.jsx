@@ -5,6 +5,7 @@ import Applications from "../pages/admin/Applications";
 import Customers from "../pages/admin/Customers";
 import Loans from "../pages/admin/Loans";
 import Settings from "../pages/admin/Settings";
+import AuditLogs from "../pages/admin/AuditLogs";
 
 export default function AdminLayout() {
   return (
@@ -16,6 +17,7 @@ export default function AdminLayout() {
           <Route path="customers" element={<Customers />} />
           <Route path="loans" element={<Loans />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="audit-logs" element={<AuditLogs />} />
         </Routes>
       </div>
       <AdminBottomNav />
