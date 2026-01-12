@@ -11,7 +11,9 @@ import {
   where,
   orderBy,
   onSnapshot,
+  updateDoc,
 } from "firebase/firestore";
+import { useTheme } from "../../context/ThemeContext";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -20,9 +22,11 @@ export default function Profile() {
   const [animate, setAnimate] = useState(false);
 
   // App Preferences State
-  const [biometricsEnabled, setBiometricsEnabled] = useState(true);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [darkTheme, setDarkTheme] = useState(false);
+  const { dark: themeDark, toggle: toggleTheme } = useTheme();
+  const [biometricsEnabled, setBiometricsEnabled] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [darkTheme, setDarkTheme] = useState(themeDark);
+  const [showNotifModal, setShowNotifModal] = useState(false);
 
   const [loanCount, setLoanCount] = useState(0);
   const [outstanding, setOutstanding] = useState(0);
@@ -86,6 +90,62 @@ export default function Profile() {
     return () => unsub();
   }, []);
 
+  // Save preference helper
+  const savePref = async (key, value) => {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      const userRef = doc(db, "users", currentUser.uid);
+      await updateDoc(userRef, { [key]: value });
+      try {
+        localStorage.setItem(key, value ? "true" : "false");
+      } catch (e) {}
+    } catch (err) {
+      console.error("Failed to save preference", err);
+    }
+  };
+
+  // Notifications toggle flow
+  const setNotifications = async (val) => {
+    if (val) {
+      // show modal to ask user for permission
+      setShowNotifModal(true);
+    } else {
+      setNotificationsEnabled(false);
+      savePref("pushNotifications", false);
+    }
+  };
+
+  const confirmEnableNotifications = async () => {
+    setShowNotifModal(false);
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        setNotificationsEnabled(true);
+        await savePref("pushNotifications", true);
+        alert("Notifications enabled — we'll send updates when available.");
+      } else {
+        setNotificationsEnabled(false);
+        await savePref("pushNotifications", false);
+        alert("Notifications were not granted by your browser.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Could not enable notifications: " + err.message);
+    }
+  };
+
+  const setBiometrics = async (val) => {
+    setBiometricsEnabled(val);
+    await savePref("biometricsEnabled", !!val);
+  };
+
+  const setDark = async (val) => {
+    setDarkTheme(val);
+    toggleTheme(!!val);
+    await savePref("darkTheme", !!val);
+  };
+
   const logout = async () => {
     try {
       await authLogout();
@@ -124,16 +184,38 @@ export default function Profile() {
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"
-            />
-          </svg>
+          ></svg>
         </button>
       </div>
+
+      {/* Push Notification Modal */}
+      {showNotifModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-lg">
+            <h3 className="text-lg font-bold mb-2">
+              Enable Push Notifications
+            </h3>
+            <p className="text-sm text-slate-600 mb-4">
+              We need your permission to send updates and status changes for
+              your loan. Do you want to enable push notifications?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowNotifModal(false)}
+                className="px-4 py-2 rounded bg-slate-100"
+              >
+                Not now
+              </button>
+              <button
+                onClick={confirmEnableNotifications}
+                className="px-4 py-2 rounded bg-accent text-white"
+              >
+                Enable
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className={`px-6 mt-6 space-y-6 transition-all duration-700 ${
@@ -294,7 +376,7 @@ export default function Profile() {
                 </div>
                 <Toggle
                   enabled={notificationsEnabled}
-                  onChange={setNotificationsEnabled}
+                  onChange={setNotifications}
                 />
               </div>
 
@@ -319,7 +401,7 @@ export default function Profile() {
                     Dark Mode
                   </span>
                 </div>
-                <Toggle enabled={darkTheme} onChange={setDarkTheme} />
+                <Toggle enabled={darkTheme} onChange={setDark} />
               </div>
             </div>
           </div>
@@ -351,13 +433,13 @@ export default function Profile() {
                     Biometric Login
                   </span>
                 </div>
-                <Toggle
-                  enabled={biometricsEnabled}
-                  onChange={setBiometricsEnabled}
-                />
+                <Toggle enabled={biometricsEnabled} onChange={setBiometrics} />
               </div>
 
-              <button className="w-full flex items-center justify-between p-4 active:bg-slate-50 transition-colors">
+              <button
+                onClick={() => navigate("/app/change-password")}
+                className="w-full flex items-center justify-between p-4 active:bg-slate-50 transition-colors"
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center text-slate-600">
                     <svg

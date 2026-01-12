@@ -23,6 +23,11 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [animate, setAnimate] = useState(false);
   const [adIndex, setAdIndex] = useState(0);
+  const [showBiometrics, setShowBiometrics] = useState(false);
+
+  useEffect(() => {
+    setShowBiometrics(localStorage.getItem("biometricsEnabled") === "true");
+  }, []);
 
   // ---------------------------------------------------------------------------
   // ANIMATED AD CLIPS DATA (Welcome Back Theme)
@@ -245,6 +250,7 @@ export default function Login() {
             <div className="flex justify-end">
               <button
                 type="button"
+                onClick={() => navigate("/forgot-password")}
                 className="text-sm font-semibold text-accent hover:text-green-600"
               >
                 Forgot Password?
@@ -337,28 +343,30 @@ export default function Login() {
                 Google
               </span>
             </button>
-            <button
-              onClick={handleBiometrics}
-              className="group relative flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm active:scale-95 overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <svg
-                className="w-5 h-5 text-slate-800"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            {showBiometrics && (
+              <button
+                onClick={handleBiometrics}
+                className="group relative flex items-center justify-center gap-2 py-3 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-sm active:scale-95 overflow-hidden"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.131A8 8 0 008 8m0 0a8 8 0 00-8 8c0 2.472.345 4.865.99 7.131M10 11a2 2 0 114 0 2 2 0 01-4 0z"
-                />
-              </svg>
-              <span className="text-sm font-semibold text-slate-600">
-                Passkey
-              </span>
-            </button>
+                <div className="absolute inset-0 bg-accent/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <svg
+                  className="w-5 h-5 text-slate-800"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.131A8 8 0 008 8m0 0a8 8 0 00-8 8c0 2.472.345 4.865.99 7.131M10 11a2 2 0 114 0 2 2 0 01-4 0z"
+                  />
+                </svg>
+                <span className="text-sm font-semibold text-slate-600">
+                  Passkey
+                </span>
+              </button>
+            )}
           </div>
 
           <p className="mt-8 text-center text-sm text-slate-500">
