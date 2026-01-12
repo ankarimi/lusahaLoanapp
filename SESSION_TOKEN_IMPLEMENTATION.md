@@ -159,6 +159,27 @@ const sessionToken = `${firebaseUser.uid}-${Date.now()}-${Math.random()
 - If token cleared but Firebase session exists → both cleared
 - Keeps localStorage and Firebase state in sync
 
+---
+
+## Loan Product Rules (specific to this project)
+
+- **Default user limit:** Users start with **limit = 0** on registration. Admins manually assign limits via the admin Customers UI (`src/pages/admin/Customers.jsx`).
+- **Applying for a loan:** Customers apply via `src/pages/customer/Apply.jsx`. The app requires a mobile number to transact with; the registration form requests phone number and Apply prompts for it if missing.
+- **Loan creation:** An application creates a document in the `loans` collection with: `userId`, `amount`, `durationDays`, `purpose`, `phoneUsed`, `status: 'under_review'`, `createdAt`, `interest`, and `totalRepayment`.
+- **Review flow:** Admins review applications in `src/pages/admin/Applications.jsx` and can **Approve** or **Decline** an application. Approve sets `status` to `approved`, records `approvedAt` and `approverId`; Decline sets `status` to `declined` and records reviewer info.
+- **Minimum duration:** Loan duration must be **at least 30 days**. The UI enforces this by offering 30/60/90 day terms and validating client-side.
+- **Interest rate:** Interest is **20%** (applied pro-rata relative to 30-day periods). Calculation used: `interest = amount * 0.20 * (duration / 30)`.
+- **Payments:** All payments are **manual** (outside the app). The UI explicitly informs the user that payments are manual and the phone number provided will be used to transact.
+
+**Files to review for loan logic:**
+
+- `src/pages/Register.jsx` — ensures phone is collected on registration
+- `src/pages/customer/Apply.jsx` — create application and client-side validation
+- `src/pages/admin/Applications.jsx` — admin review (approve/decline)
+- `src/pages/admin/Customers.jsx` — admin assigns `limit` to users
+
+---
+
 ## Usage in Components
 
 ### Access Auth State

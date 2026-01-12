@@ -1,6 +1,14 @@
 // src\pages\Apply.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { auth, db } from "../../firebase";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 
 export default function Apply() {
   const navigate = useNavigate();
@@ -11,11 +19,14 @@ export default function Apply() {
   const [duration, setDuration] = useState(30);
   const [purpose, setPurpose] = useState("");
   const [loading, setLoading] = useState(false);
+  const [userLimit, setUserLimit] = useState(0);
+  const [phone, setPhone] = useState("");
+  const [missingPhone, setMissingPhone] = useState(false);
 
   // Constants
-  const LOAN_LIMIT = 50000;
-  const INTEREST_RATE = 0.12;
-  const PROCESSING_FEE_RATE = 0.03;
+  // Minimum loan duration is 30 days
+  const INTEREST_RATE = 0.2; // 20% as per requirements
+  const PROCESSING_FEE_RATE = 0.0; // No processing fee required by spec
 
   // Calculations
   const interest = Math.round(amount * INTEREST_RATE * (duration / 30));
@@ -24,6 +35,25 @@ export default function Apply() {
 
   useEffect(() => {
     setAnimate(true);
+
+    // Load current user's limit and phone from Firestore
+    const loadUser = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+      const userRef = doc(db, "users", currentUser.uid);
+      const snapshot = await getDoc(userRef);
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        const limit = data.limit || 0;
+        setUserLimit(limit);
+        // Adjust default amount not to exceed user limit
+        setAmount((prev) => (limit > 0 ? Math.min(prev, limit) : prev));
+        setPhone(data.phone || "");
+        if (!data.phone) setMissingPhone(true);
+      }
+    };
+
+    loadUser();
   }, []);
 
   // Purpose Configuration with Specific Colors
@@ -64,13 +94,60 @@ export default function Apply() {
 
   const activePurposeData = purposes.find((p) => p.id === purpose);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!purpose) return;
+
+    if (userLimit <= 0) {
+      alert(
+        "You don't have an assigned loan limit yet. Please contact admin to get a limit."
+      );
+      return;
+    }
+
+    if (amount > userLimit) {
+      alert(
+        `Requested amount exceeds your limit of KSH ${userLimit.toLocaleString()}`
+      );
+      return;
+    }
+
+    if (duration < 30) {
+      alert("Minimum loan duration is 30 days.");
+      return;
+    }
+
+    if (!phone) {
+      setMissingPhone(true);
+      alert("Please provide a mobile number to transact with before applying.");
+      return;
+    }
+
     setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
+
+    try {
+      const loanRef = collection(db, "loans");
+      await addDoc(loanRef, {
+        userId: auth.currentUser.uid,
+        amount: Number(amount),
+        durationDays: Number(duration),
+        purpose,
+        status: "under_review",
+        createdAt: serverTimestamp(),
+        interest: interest,
+        processingFee: processingFee,
+        totalRepayment: totalRepayment,
+        phoneUsed: phone,
+      });
+
+      // Inform user
+      alert("Loan application submitted and is under review by admin.");
       navigate("/app/home");
-    }, 2000);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to submit application. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -105,7 +182,7 @@ export default function Apply() {
             </div>
             <div className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full border border-white/20">
               <span className="text-xs font-bold text-white">
-                Limit: KSH {LOAN_LIMIT.toLocaleString()}
+                Limit: KSH {userLimit?.toLocaleString() || 0}
               </span>
             </div>
           </div>
@@ -136,7 +213,7 @@ export default function Apply() {
           <input
             type="range"
             min="500"
-            max={LOAN_LIMIT}
+            max={userLimit || 500}
             step="500"
             value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
@@ -146,10 +223,14 @@ export default function Apply() {
               `}
             style={{
               backgroundImage: `linear-gradient(to right, rgba(255,255,255,0.3) ${
-                (amount / LOAN_LIMIT) * 100
-              }%, #e2e8f0 ${(amount / LOAN_LIMIT) * 100}%)`,
+                (amount / (userLimit || 500)) * 100
+              }%, #e2e8f0 ${(amount / (userLimit || 500)) * 100}%)`,
             }}
           />
+          <div className="flex justify-between mt-2 text-[10px] font-bold text-slate-400">
+            <span>KSH 500</span>
+            <span>{userLimit ? "Max Limit" : "No Limit assigned"}</span>
+          </div>
           <div className="flex justify-between mt-2 text-[10px] font-bold text-slate-400">
             <span>KSH 500</span>
             <span>Max Limit</span>
@@ -162,7 +243,7 @@ export default function Apply() {
             Duration
           </label>
           <div className="flex justify-between gap-2">
-            {[7, 14, 21, 30].map((d) => (
+            {[30, 60, 90].map((d) => (
               <button
                 key={d}
                 onClick={() => setDuration(d)}
@@ -264,11 +345,19 @@ export default function Apply() {
               </span>
             </div>
             <div className="flex justify-between">
-              <span>Interest & Fees</span>
+              <span>Interest</span>
               <span className="text-white font-medium">
-                + {(interest + processingFee).toLocaleString()}
+                + {interest.toLocaleString()}
               </span>
             </div>
+            {processingFee > 0 && (
+              <div className="flex justify-between">
+                <span>Processing Fee</span>
+                <span className="text-white font-medium">
+                  + {processingFee.toLocaleString()}
+                </span>
+              </div>
+            )}
           </div>
 
           <div className="bg-white/5 rounded-xl p-4 flex justify-between items-center">
@@ -283,15 +372,43 @@ export default function Apply() {
           </div>
         </div>
 
+        {/* Phone Input if missing */}
+        {missingPhone && (
+          <div className="bg-white rounded-[1rem] p-4 mb-4">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest block mb-2">
+              Mobile number to transact with
+            </label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="e.g. +254712345678"
+              className="w-full p-3 border rounded text-sm"
+            />
+            <p className="text-xs text-slate-400 mt-2">
+              This number will be used to transact when your loan is approved —
+              payments are manual.
+            </p>
+          </div>
+        )}
+
+        {/* Limit Notice */}
+        {userLimit <= 0 && (
+          <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 rounded p-3 mb-3">
+            You don't have an assigned loan limit yet. Contact an admin to set
+            your limit.
+          </div>
+        )}
+
         {/* 6. Submit Button */}
         <button
           onClick={handleSubmit}
-          disabled={!purpose || loading}
+          disabled={!purpose || loading || userLimit <= 0 || amount > userLimit}
           className={`
             w-full py-4 rounded-2xl font-bold text-white shadow-xl text-lg
             transition-all duration-300 transform active:scale-95 flex items-center justify-center gap-3
             ${
-              !purpose || loading
+              !purpose || loading || userLimit <= 0 || amount > userLimit
                 ? "bg-slate-300 cursor-not-allowed shadow-none"
                 : `bg-gradient-to-r ${
                     activePurposeData

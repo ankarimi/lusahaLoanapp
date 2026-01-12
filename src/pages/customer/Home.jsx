@@ -1,6 +1,16 @@
 // src\pages\Home.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { auth, db } from "../../firebase";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  doc,
+  getDoc,
+} from "firebase/firestore";
 
 export default function Home() {
   const navigate = useNavigate();
@@ -8,28 +18,81 @@ export default function Home() {
   const [animate, setAnimate] = useState(false);
 
   // ---------------------------------------------------------
-  // CONFIGURATION: TOGGLE THIS TO SEE DIFFERENT STATES
+  // DYNAMIC: Load user profile and loans from Firestore
   // ---------------------------------------------------------
-  const hasActiveApplication = true; // Set to false to see the "Eligible" state
-
-  const user = {
-    firstName: "Kevin",
-    limit: 50000,
+  const [user, setUser] = useState({
+    firstName: "",
+    limit: 0,
     balance: 0,
-    creditScore: 720,
-  };
-
-  const applicationData = {
-    id: "#APP-8921",
-    type: "Business Loan",
-    amount: 20000,
-    status: "Under Review",
-    date: "Today, 10:42 AM",
-    step: 2, // 1: Received, 2: Review, 3: Finalizing
-  };
+    creditScore: 0,
+  });
+  const [loans, setLoans] = useState([]);
+  const [applicationData, setApplicationData] = useState(null);
+  const [hasActiveApplication, setHasActiveApplication] = useState(false);
 
   useEffect(() => {
     setAnimate(true);
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    // load user document
+    (async () => {
+      try {
+        const userRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const d = userSnap.data();
+          setUser({
+            firstName: d.name || currentUser.displayName || "",
+            limit: d.limit || 0,
+            balance: d.balance || 0,
+            creditScore: d.creditScore || 0,
+          });
+        } else {
+          setUser({
+            firstName: currentUser.displayName || "",
+            limit: 0,
+            balance: 0,
+            creditScore: 0,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load user", err);
+      }
+    })();
+
+    // subscribe to user's loans
+    const loansRef = collection(db, "loans");
+    const q = query(
+      loansRef,
+      where("userId", "==", currentUser.uid),
+      orderBy("createdAt", "desc")
+    );
+    const unsubscribe = onSnapshot(q, (snap) => {
+      const arr = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setLoans(arr);
+
+      const pending = arr.find(
+        (l) => l.status === "under_review" || l.status === "pending"
+      );
+      if (pending) {
+        setApplicationData({
+          id: pending.id,
+          type: pending.purpose || "Loan",
+          amount: pending.amount,
+          status: pending.status,
+          date: pending.createdAt?.toDate?.().toLocaleString() || "",
+          step: 2,
+        });
+        setHasActiveApplication(true);
+      } else {
+        setApplicationData(null);
+        setHasActiveApplication(false);
+      }
+    });
+
+    return () => unsubscribe();
   }, []);
 
   // Time based greeting
@@ -381,61 +444,120 @@ export default function Home() {
           </h3>
 
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 14l-7 7m0 0l-7-7m7 7V3"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-700">
-                    Loan Disbursed
-                  </p>
-                  <p className="text-xs text-slate-400">12 Jan 2026</p>
-                </div>
-              </div>
-              <span className="text-sm font-bold text-green-600">
-                + KSH 15,000
-              </span>
-            </div>
+            {loans && loans.length > 0 ? (
+              loans.slice(0, 3).map((l) => {
+                const dateLabel =
+                  l.approvedAt?.toDate?.()?.toLocaleDateString?.() ||
+                  l.createdAt?.toDate?.()?.toLocaleDateString?.() ||
+                  "-";
+                const amountLabel = l.amount?.toLocaleString() || 0;
+                if (l.status === "approved") {
+                  return (
+                    <div
+                      key={l.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-green-50 flex items-center justify-center text-green-600">
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700">
+                            Loan Disbursed
+                          </p>
+                          <p className="text-xs text-slate-400">{dateLabel}</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-bold text-green-600">
+                        + KSH {amountLabel}
+                      </span>
+                    </div>
+                  );
+                }
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                  <svg
-                    className="w-5 h-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 10l7-7m0 0l7 7m-7-7v18"
-                    />
-                  </svg>
-                </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-700">Repayment</p>
-                  <p className="text-xs text-slate-400">01 Jan 2026</p>
-                </div>
-              </div>
-              <span className="text-sm font-bold text-slate-800">
-                - KSH 5,200
-              </span>
-            </div>
+                if (l.status === "paid" || l.status === "PAID") {
+                  return (
+                    <div
+                      key={l.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                          <svg
+                            className="w-5 h-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M5 10l7-7m0 0l7 7m-7-7v18"
+                            />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700">
+                            Repayment
+                          </p>
+                          <p className="text-xs text-slate-400">{dateLabel}</p>
+                        </div>
+                      </div>
+                      <span className="text-sm font-bold text-slate-800">
+                        - KSH {amountLabel}
+                      </span>
+                    </div>
+                  );
+                }
+
+                // Default: application created or under review
+                return (
+                  <div key={l.id} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-600">
+                        <svg
+                          className="w-5 h-5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                          />
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-700">
+                          Application Submitted
+                        </p>
+                        <p className="text-xs text-slate-400">{dateLabel}</p>
+                      </div>
+                    </div>
+                    <span className="text-sm font-bold text-slate-800">
+                      KSH {amountLabel}
+                    </span>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-xs text-slate-400">No recent activity</div>
+            )}
           </div>
         </div>
       </div>

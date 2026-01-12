@@ -1,8 +1,17 @@
 // src\pages\Profile.jsx
 import { useState, useEffect } from "react";
-import { auth } from "../../firebase";
+import { auth, db } from "../../firebase";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+} from "firebase/firestore";
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -15,21 +24,66 @@ export default function Profile() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkTheme, setDarkTheme] = useState(false);
 
+  const [loanCount, setLoanCount] = useState(0);
+  const [outstanding, setOutstanding] = useState(0);
+
   useEffect(() => {
-    // Simulate loading data
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      setUser({
-        name: currentUser.displayName || "Alex Kariuki",
-        email: currentUser.email,
-        photoURL: currentUser.photoURL,
-        phone: currentUser.phoneNumber || "+254 712 345 678",
-        verified: currentUser.emailVerified,
-        uid: currentUser.uid,
-        memberSince: "Jan 2026",
-      });
-    }
     setAnimate(true);
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    // Load user document
+    (async () => {
+      try {
+        const userRef = doc(db, "users", currentUser.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const d = userSnap.data();
+          setUser({
+            name: d.name || currentUser.displayName || "",
+            email: d.email || currentUser.email,
+            photoURL: d.photoURL || currentUser.photoURL,
+            phone: d.phone || currentUser.phoneNumber || "",
+            verified: currentUser.emailVerified,
+            uid: currentUser.uid,
+            memberSince: d.createdAt
+              ? new Date(d.createdAt).toLocaleDateString()
+              : "",
+          });
+        } else {
+          setUser({
+            name: currentUser.displayName || "",
+            email: currentUser.email,
+            photoURL: currentUser.photoURL,
+            phone: currentUser.phoneNumber || "",
+            verified: currentUser.emailVerified,
+            uid: currentUser.uid,
+            memberSince: "",
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load user", err);
+      }
+    })();
+
+    // Subscribe to loans to compute stats
+    const loansRef = collection(db, "loans");
+    const q = query(
+      loansRef,
+      where("userId", "==", currentUser.uid),
+      orderBy("createdAt", "desc")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      setLoanCount(docs.length);
+      const totalOutstanding = docs
+        .filter((l) => l.status !== "paid" && l.status !== "declined")
+        .reduce((acc, cur) => acc + (cur.totalRepayment ?? cur.amount ?? 0), 0);
+      setOutstanding(totalOutstanding);
+    });
+
+    return () => unsub();
   }, []);
 
   const logout = async () => {
@@ -114,6 +168,26 @@ export default function Profile() {
                   <p className="text-xs text-slate-400 font-mono mt-0.5">
                     {user?.uid?.substring(0, 10).toUpperCase() || "USER-8932"}
                   </p>
+
+                  {/* Dynamic stats */}
+                  <div className="mt-2 flex gap-3 text-[12px]">
+                    <div className="bg-white/5 px-3 py-1 rounded-full">
+                      <span className="block text-slate-400 text-[10px]">
+                        Active Loans
+                      </span>
+                      <span className="font-bold text-slate-100">
+                        {loanCount}
+                      </span>
+                    </div>
+                    <div className="bg-white/5 px-3 py-1 rounded-full">
+                      <span className="block text-slate-400 text-[10px]">
+                        Outstanding
+                      </span>
+                      <span className="font-bold text-slate-100">
+                        KSH {outstanding.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
 

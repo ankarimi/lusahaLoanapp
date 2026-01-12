@@ -36,7 +36,7 @@ export default function Register() {
   const adClips = [
     {
       title: "Limitless Potential",
-      text: "Start with KSH 5,000 and grow your limit to KSH 100,000+ by building trust.",
+      text: "Admins assign an initial limit; request a limit after registration and build trust to grow it.",
       icon: "🚀",
       bgGradient: "from-blue-600 to-indigo-900",
     },
@@ -80,7 +80,7 @@ export default function Register() {
         role: "customer",
         createdAt: Date.now(),
         authProvider: additionalData.provider || "email",
-        limit: 5000, // Default starting limit
+        limit: 0, // Default starting limit (admins assign limits manually)
         trustScore: 10,
       });
     }
@@ -89,6 +89,13 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
+
+    // Ensure phone is provided since it's used for loan transactions
+    if (!formData.phone || !formData.phone.trim()) {
+      setError("Please provide a mobile phone number for transactions.");
+      return;
+    }
+
     setLoading(true);
 
     try {

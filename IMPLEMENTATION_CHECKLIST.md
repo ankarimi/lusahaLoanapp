@@ -31,6 +31,16 @@
 - [x] `SESSION_VISUAL_WALKTHROUGH.md` - User journey walkthrough
 - [x] `SESSION_TOKEN_SUMMARY.md` - Executive summary
 
+### Loan Product Implementation
+
+- [x] Users start with `limit = 0` saved to Firestore on registration
+- [x] Registration requires a mobile `phone` field used for transactions
+- [x] `Apply.jsx` enforces minimum duration (30 days) and max amount (user limit)
+- [x] Interest calculation set to 20% (pro-rata by 30-day units)
+- [x] Loan applications created in `loans` collection with status `under_review`
+- [x] Admin `Applications.jsx` lists loans and supports Approve / Decline actions
+- [x] Admin `Customers.jsx` allows setting/updating user `limit`
+
 ## 🧪 Testing Checklist
 
 ### Manual Testing - Login
@@ -58,6 +68,19 @@
 - [ ] Should show email verification page
 - [ ] Check localStorage for `authToken`
 - [ ] Should have token immediately after registration
+
+### Manual Testing - Loans
+
+- [ ] Register a new user (ensure `phone` provided)
+- [ ] Verify new user's Firestore document has `limit: 0`
+- [ ] As Admin, go to `/admin/customers`, set a positive `limit` for the user
+- [ ] As the user, visit `/app/apply` and confirm UI shows updated `limit`
+- [ ] Try applying for amount > `limit` → should be blocked with validation message
+- [ ] Try applying for duration < 30 days → should be blocked
+- [ ] Submit valid application (amount <= limit, duration >= 30) → should create `loans` doc with `status: 'under_review'`
+- [ ] Check that calculated `interest` = amount _ 0.2 _ (duration/30) and `totalRepayment` stored correctly
+- [ ] As Admin, visit `/admin/applications`, approve the application → loan `status` should become `approved` and `dueDate` set
+- [ ] As Admin, decline an application → loan `status` should become `declined` and `reviewedAt` set
 
 ### Manual Testing - Protected Routes
 
@@ -216,6 +239,16 @@
 - [ ] Logout redirects to /login
 - [ ] No errors on logout
 
+### Loan Pages
+
+- [ ] `Apply.jsx` loads user's `limit` and `phone` from Firestore and enforces validation
+- [ ] `Apply.jsx` computes `interest` at 20% and stores `totalRepayment` correctly
+- [ ] `Apply.jsx` creates `loans` document with required fields (`userId`, `amount`, `durationDays`, `status`, `createdAt`, `interest`, `totalRepayment`, `phoneUsed`)
+- [ ] `Applications.jsx` queries `loans` and displays applicant info and status
+- [ ] `Applications.jsx` Approve/Decline handlers update loan `status`, set approver/reviewer ids, timestamps, and `dueDate` on approval
+- [ ] `Customers.jsx` fetches users and allows admin to set `limit`; `saveLimit()` updates Firestore and UI
+- [ ] Ensure Firestore reads/writes use minimal permissions in security rules (recommended audit)
+
 ## 📚 Documentation Quality
 
 ### SESSION_TOKEN_IMPLEMENTATION.md
@@ -226,6 +259,7 @@
 - [ ] Usage examples provided
 - [ ] Security notes included
 - [ ] Testing instructions clear
+- [ ] Loan product rules documented (apply flow, durations, interest, admin actions)
 
 ### SESSION_FLOW_DIAGRAMS.md
 
@@ -301,6 +335,14 @@
 - [x] Users can logout
 - [x] Logout clears everything
 - [x] Session restores after app restart
+- [x] Users start with `limit = 0` on registration
+- [x] Admin can assign/update user `limit` in `/admin/customers`
+- [x] Users cannot apply for amounts > `limit`
+- [x] Min loan duration enforced (30 days)
+- [x] Interest calculation (20% pro-rata) implemented
+- [x] Loan applications created with status `under_review`
+- [x] Admin can approve/decline loans; statuses and timestamps set accordingly
+- [ ] Server-side validation and security rules for loans (pending)
 
 ### Code Quality
 

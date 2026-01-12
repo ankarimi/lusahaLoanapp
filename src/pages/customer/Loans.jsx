@@ -1,55 +1,78 @@
 // src\pages\Loans.jsx
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { auth, db } from "../../firebase";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+} from "firebase/firestore";
 
 export default function Loans() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("active");
   const [animate, setAnimate] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loans, setLoans] = useState([]);
 
-  // Mock Data
-  const loans = [
-    {
-      id: "LN-8832",
-      amount: 30000,
-      balance: 12500,
-      status: "ACTIVE",
-      dueDate: "30 Mar 2026",
-      issuedDate: "01 Mar 2026",
-      type: "Personal Loan",
-      interest: "12%",
-    },
-    {
-      id: "LN-4421",
-      amount: 15000,
-      balance: 15000,
-      status: "OVERDUE",
-      dueDate: "15 Feb 2026",
-      issuedDate: "15 Jan 2026",
-      type: "Emergency Loan",
-      interest: "15%",
-    },
-    {
-      id: "LN-1029",
-      amount: 5000,
-      balance: 0,
-      status: "PAID",
-      dueDate: "10 Dec 2025",
-      issuedDate: "01 Dec 2025",
-      type: "Airtime Advance",
-      interest: "5%",
-    },
-  ];
+  useEffect(() => {
+    setAnimate(true);
+
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    const loansRef = collection(db, "loans");
+    const q = query(
+      loansRef,
+      where("userId", "==", currentUser.uid),
+      orderBy("createdAt", "desc")
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+      // Normalize each loan for UI
+      const normalized = docs.map((loan) => {
+        const totalRepayment = loan.totalRepayment ?? loan.amount ?? 0;
+        const paid = loan.paidAmount ?? 0;
+        const balance = Math.max(0, totalRepayment - paid);
+        const statusMap = {
+          approved: "ACTIVE",
+          under_review: "PENDING",
+          declined: "DECLINED",
+          paid: "PAID",
+        };
+        const status = statusMap[loan.status] || loan.status || "PENDING";
+        const dueDate = loan.dueDate?.toDate?.()?.toLocaleDateString?.() || "-";
+        const issuedDate =
+          loan.createdAt?.toDate?.()?.toLocaleDateString?.() || "-";
+        const interestRate = loan.amount
+          ? Math.round((loan.interest / loan.amount) * 100)
+          : 0;
+
+        return {
+          id: loan.id,
+          amount: loan.amount ?? 0,
+          balance,
+          status,
+          dueDate,
+          issuedDate,
+          type: loan.purpose ?? "Loan",
+          interest: `${interestRate}%`,
+        };
+      });
+
+      setLoans(normalized);
+    });
+
+    return () => unsub();
+  }, []);
 
   // Calculations
   const totalDebt = loans
     .filter((l) => l.status !== "PAID")
     .reduce((acc, curr) => acc + curr.balance, 0);
-
-  useEffect(() => {
-    setAnimate(true);
-  }, []);
 
   // Filter Logic
   const filteredLoans = loans.filter((loan) => {
