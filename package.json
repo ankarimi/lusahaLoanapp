@@ -9,6 +9,7 @@
     "build:admin": "vite build",
     "build:app": "npm --prefix ./app run build",
     "emulators:start": "firebase emulators:start --only auth,firestore",
+    "seed:emulator": "node scripts/seed.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
