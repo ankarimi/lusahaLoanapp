@@ -1,25 +1,41 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
+import { db } from "../../src/firebase";
+import { collection, getDocs } from "firebase/firestore";
 
-export default function Register(){
-  const [email,setEmail] = useState('');
-  const [password,setPassword] = useState('');
-  const [fullName,setFullName] = useState('');
-  const [university,setUniversity] = useState('');
-  const [status,setStatus] = useState('');
+export default function Register() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [university, setUniversity] = useState("");
+  const [status, setStatus] = useState("");
+  const [universities, setUniversities] = useState([]);
   const { register } = useAuth();
   const nav = useNavigate();
 
-  async function submit(e){
+  useEffect(()=>{
+    async function load(){
+      const snap = await getDocs(collection(db, 'universities'));
+      setUniversities(snap.docs.map(d=>({ id: d.id, ...d.data() })));
+    }
+    load();
+  },[]);
+
+  async function submit(e) {
     e.preventDefault();
-    setStatus('Creating account...');
-    try{
-      await register({ email, password, full_name: fullName, university_id: university });
-      nav('/');
-    }catch(err){
+    setStatus("Creating account...");
+    try {
+      await register({
+        email,
+        password,
+        full_name: fullName,
+        university_id: university,
+      });
+      nav("/");
+    } catch (err) {
       console.error(err);
-      setStatus('Registration failed');
+      setStatus("Registration failed");
     }
   }
 
@@ -27,13 +43,35 @@ export default function Register(){
     <div className="container">
       <h2>Register</h2>
       <form onSubmit={submit} className="card">
-        <label>Full name<input value={fullName} onChange={e=>setFullName(e.target.value)} /></label>
-        <label>University ID<input value={university} onChange={e=>setUniversity(e.target.value)} placeholder="university id (for now enter name)"/></label>
-        <label>Email<input value={email} onChange={e=>setEmail(e.target.value)} /></label>
-        <label>Password<input type="password" value={password} onChange={e=>setPassword(e.target.value)} /></label>
+        <label>
+          Full name
+          <input
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+        </label>
+        <label>
+          University
+          <select value={university} onChange={(e)=>setUniversity(e.target.value)}>
+            <option value="">Select university</option>
+            {universities.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+          </select>
+        </label>
+        <label>
+          Email
+          <input value={email} onChange={(e) => setEmail(e.target.value)} />
+        </label>
+        <label>
+          Password
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
         <button type="submit">Create account</button>
       </form>
-      <div style={{marginTop:12}}>{status}</div>
+      <div style={{ marginTop: 12 }}>{status}</div>
     </div>
-  )
+  );
 }
