@@ -5,6 +5,7 @@ import Universities from "./pages/admin/Universities";
 import Courses from "./pages/admin/Courses";
 import AdminUsers from "./pages/admin/AdminUsers";
 import ProtectedRoute from "./components/ProtectedRoute";
+import AdminRoute from "./components/AdminRoute";
 
 export default function App() {
   return (
@@ -13,10 +14,10 @@ export default function App() {
         <Link to="/">Dashboard</Link>
       </div>
       <Routes>
-        <Route path="/" element={<ProtectedRoute><AdminDashboard/></ProtectedRoute>} />
-        <Route path="/universities" element={<ProtectedRoute><Universities/></ProtectedRoute>} />
-        <Route path="/admin/courses" element={<ProtectedRoute><Courses/></ProtectedRoute>} />
-        <Route path="/admin/users" element={<ProtectedRoute><AdminUsers/></ProtectedRoute>} />
+        <Route path="/" element={<AdminRoute><AdminDashboard/></AdminRoute>} />
+        <Route path="/universities" element={<AdminRoute><Universities/></AdminRoute>} />
+        <Route path="/admin/courses" element={<AdminRoute><Courses/></AdminRoute>} />
+        <Route path="/admin/users" element={<AdminRoute><AdminUsers/></AdminRoute>} />
       </Routes>
     </BrowserRouter>
   );
