@@ -20,11 +20,15 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || null);
+  const [token, setToken] = useState(
+    () => localStorage.getItem(TOKEN_KEY) || null
+  );
 
   // create a session token and persist to localStorage
   function createSession(firebaseUser) {
-    const sessionToken = `${firebaseUser.uid}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const sessionToken = `${firebaseUser.uid}-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
     localStorage.setItem(TOKEN_KEY, sessionToken);
     localStorage.setItem(USER_ID_KEY, firebaseUser.uid);
     setToken(sessionToken);
@@ -94,7 +98,17 @@ export function AuthProvider({ children }) {
     clearSession();
   }
 
-  const value = { user, profile, loading, token, createSession, clearSession, register, login, logout };
+  const value = {
+    user,
+    profile,
+    loading,
+    token,
+    createSession,
+    clearSession,
+    register,
+    login,
+    logout,
+  };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

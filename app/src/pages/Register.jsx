@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
-import { db } from "../../src/firebase";
+import { db } from "../../../src/firebase";
 import { collection, getDocs } from "firebase/firestore";
 
 export default function Register() {
@@ -14,13 +14,13 @@ export default function Register() {
   const { register } = useAuth();
   const nav = useNavigate();
 
-  useEffect(()=>{
-    async function load(){
-      const snap = await getDocs(collection(db, 'universities'));
-      setUniversities(snap.docs.map(d=>({ id: d.id, ...d.data() })));
+  useEffect(() => {
+    async function load() {
+      const snap = await getDocs(collection(db, "universities"));
+      setUniversities(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
     }
     load();
-  },[]);
+  }, []);
 
   async function submit(e) {
     e.preventDefault();
@@ -52,9 +52,16 @@ export default function Register() {
         </label>
         <label>
           University
-          <select value={university} onChange={(e)=>setUniversity(e.target.value)}>
+          <select
+            value={university}
+            onChange={(e) => setUniversity(e.target.value)}
+          >
             <option value="">Select university</option>
-            {universities.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            {universities.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
           </select>
         </label>
         <label>

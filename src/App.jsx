@@ -14,10 +14,38 @@ export default function App() {
         <Link to="/">Dashboard</Link>
       </div>
       <Routes>
-        <Route path="/" element={<AdminRoute><AdminDashboard/></AdminRoute>} />
-        <Route path="/universities" element={<AdminRoute><Universities/></AdminRoute>} />
-        <Route path="/admin/courses" element={<AdminRoute><Courses/></AdminRoute>} />
-        <Route path="/admin/users" element={<AdminRoute><AdminUsers/></AdminRoute>} />
+        <Route
+          path="/"
+          element={
+            <AdminRoute>
+              <AdminDashboard />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/universities"
+          element={
+            <AdminRoute>
+              <Universities />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/courses"
+          element={
+            <AdminRoute>
+              <Courses />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <AdminRoute>
+              <AdminUsers />
+            </AdminRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );

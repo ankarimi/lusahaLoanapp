@@ -42,8 +42,9 @@ export default function AdminDashboard() {
   return (
     <div style={{ padding: 24 }}>
       <h2>Pending Notes</h2>
-      <div style={{marginBottom:12}}>
-        <a href="/">Dashboard</a> · <a href="/universities">Universities</a> · <a href="/admin/courses">Courses</a>
+      <div style={{ marginBottom: 12 }}>
+        <a href="/">Dashboard</a> · <a href="/universities">Universities</a> ·{" "}
+        <a href="/admin/courses">Courses</a>
       </div>
       {loading && <div>Loading...</div>}
       {!loading && pending.length === 0 && <div>No pending notes</div>}

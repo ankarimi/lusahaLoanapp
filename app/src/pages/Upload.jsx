@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { uploadImage } from "../../src/utils/uploadImage";
-import { db } from "../../src/firebase";
+import { uploadImage } from "../../../src/utils/uploadImage";
+import { db } from "../../../src/firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "../AuthContext";
 
@@ -12,7 +12,8 @@ export default function Upload() {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!user) return setStatus("You must be signed in to upload — go to Login");
+    if (!user)
+      return setStatus("You must be signed in to upload — go to Login");
     if (!file) return setStatus("Pick a file first");
     setStatus("Uploading...");
     try {
@@ -23,7 +24,7 @@ export default function Upload() {
         title,
         file_url: url,
         uploader_user_id: userId,
-        university_id: profile && profile.university_id || null,
+        university_id: (profile && profile.university_id) || null,
         status: "pending",
         created_at: serverTimestamp(),
       });
@@ -54,7 +55,11 @@ export default function Upload() {
         <button type="submit">Upload</button>
       </form>
       <div style={{ marginTop: 12 }}>{status}</div>
-      {!user && <div style={{ marginTop: 12 }}>Not signed in — <a href="/login">Sign in</a></div>}
+      {!user && (
+        <div style={{ marginTop: 12 }}>
+          Not signed in — <a href="/login">Sign in</a>
+        </div>
+      )}
     </div>
   );
 }
