@@ -8,6 +8,7 @@
     "dev:app": "npm --prefix ./app run dev",
     "build:admin": "vite build",
     "build:app": "npm --prefix ./app run build",
+    "emulators:start": "firebase emulators:start --only auth,firestore",
     "lint": "eslint .",
     "preview": "vite preview"
   },

@@ -1,0 +1,58 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users: own profile only
+    match /users/{userId} {
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow read, update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Notes: create allowed for authenticated uploader; reads limited to approved or same-university admins
+    match /notes/{noteId} {
+      allow create: if request.auth != null
+        && request.resource.data.uploader_user_id == request.auth.uid
+        && request.resource.data.status == 'pending';
+
+      allow read: if resource.data.status == 'approved'
+        || (request.auth != null &&
+            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','super_admin']
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.university_id == resource.data.university_id);
+
+      allow update: if request.auth != null && (
+        // uploader can edit non-status fields
+        (request.auth.uid == resource.data.uploader_user_id && request.resource.data.status == resource.data.status)
+        // admins (and super_admin) can change status
+        || (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','super_admin']
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.university_id == resource.data.university_id)
+      );
+
+      allow delete: if false;
+    }
+
+    // Events: visibility rules
+    match /events/{eventId} {
+      allow create: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.university_id == request.resource.data.university_id;
+
+      allow read: if request.resource.data.visibility == 'public'
+        || (request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.university_id == resource.data.university_id);
+
+      allow update: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin','super_admin']
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.university_id == resource.data.university_id;
+    }
+
+    // Basic public reads for lookup collections
+    match /universities/{docId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin';
+    }
+
+    match /{document=**} {
+      // default deny
+      allow read, write: if false;
+    }
+  }
+}
