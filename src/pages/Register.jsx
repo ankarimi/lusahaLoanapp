@@ -8,7 +8,14 @@ import {
   signInWithPopup,
 } from "firebase/auth";
 import { auth, db } from "../firebase";
-import { doc, setDoc, getDoc, collection, addDoc } from "firebase/firestore";
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  addDoc,
+  updateDoc,
+} from "firebase/firestore";
 import { SUPPORT_EMAIL } from "../config/support";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -78,10 +85,12 @@ export default function Register() {
   };
 
   const saveUserToDb = async (user, additionalData = {}) => {
-    const userDoc = await getDoc(doc(db, "users", user.uid));
+    const userRef = doc(db, "users", user.uid);
+    const userDoc = await getDoc(userRef);
+    const role = additionalData.isAdmin ? "admin" : "customer";
+
     if (!userDoc.exists()) {
-      const role = additionalData.isAdmin ? "admin" : "customer";
-      await setDoc(doc(db, "users", user.uid), {
+      await setDoc(userRef, {
         name: additionalData.name || user.displayName || "User",
         email: user.email,
         phone: additionalData.phone || user.phoneNumber || "",
@@ -104,6 +113,16 @@ export default function Register() {
           });
         } catch (err) {
           console.error("Failed to write audit log for admin signup", err);
+        }
+      }
+    } else {
+      // Ensure existing user has the correct role; upgrade to admin if requested
+      const existing = userDoc.data();
+      if (existing.role !== role) {
+        try {
+          await updateDoc(userRef, { role });
+        } catch (err) {
+          console.error("Failed to update user role", err);
         }
       }
     }
@@ -167,7 +186,10 @@ export default function Register() {
 
     try {
       const result = await signInWithPopup(auth, provider);
-      await saveUserToDb(result.user, { provider: providerName });
+      await saveUserToDb(result.user, {
+        provider: providerName,
+        isAdmin: false,
+      });
       // Create session token
       createSession(result.user);
       navigate("/app/home");
@@ -485,7 +507,11 @@ export default function Register() {
               Sign up as admin
             </button>
             {isAdminRegister && (
-              <p className="mt-2 text-xs text-slate-400">Only {SUPPORT_EMAIL} is permitted to register as admin. After signup you will be sent a verification email — verify to access the admin dashboard.</p>
+              <p className="mt-2 text-xs text-slate-400">
+                Only {SUPPORT_EMAIL} is permitted to register as admin. After
+                signup you will be sent a verification email — verify to access
+                the admin dashboard.
+              </p>
             )}
           </div>
         </div>

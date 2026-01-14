@@ -77,7 +77,15 @@ export default function Support() {
         {/* 3. The "Bento" Contact Grid */}
         <div className="grid grid-cols-2 gap-4">
           {/* Main Card: WhatsApp (Occupies full width on mobile if you want, or large spot) */}
-          <a href={`https://wa.me/${"+254762634893".replace(/\D/g, "")}?text=Hello`} target="_blank" rel="noopener noreferrer" className="col-span-2 bg-[#25D366] hover:bg-[#22bf5b] rounded-[2rem] p-6 text-white shadow-lg shadow-green-500/20 transition-transform active:scale-[0.98] flex items-center justify-between relative overflow-hidden">
+          <a
+            href={`https://wa.me/${"+254762634893".replace(
+              /\D/g,
+              ""
+            )}?text=Hello`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="col-span-2 bg-[#25D366] hover:bg-[#22bf5b] rounded-[2rem] p-6 text-white shadow-lg shadow-green-500/20 transition-transform active:scale-[0.98] flex items-center justify-between relative overflow-hidden"
+          >
             <div className="relative z-10 text-left">
               <div className="flex items-center gap-2 mb-1">
                 <span className="bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide">
@@ -99,7 +107,10 @@ export default function Support() {
           </a>
 
           {/* Email Card */}
-          <a href={`mailto:${"moderation.mails.go@gmail.com"}`} className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex flex-col items-start justify-between h-40 hover:border-slate-300 transition-colors">
+          <a
+            href={`mailto:${"moderation.mails.go@gmail.com"}`}
+            className="bg-white rounded-[2rem] p-5 shadow-sm border border-slate-100 flex flex-col items-start justify-between h-40 hover:border-slate-300 transition-colors"
+          >
             <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center">
               <svg
                 className="w-5 h-5"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { db } from "../../firebase";
 import { collection, getDocs, doc, updateDoc } from "firebase/firestore";
+import { SUPPORT_EMAIL } from "../../config/support";
 
 export default function Customers() {
   const [users, setUsers] = useState([]);
@@ -10,33 +11,48 @@ export default function Customers() {
     const loadUsers = async () => {
       const q = collection(db, "users");
       const snap = await getDocs(q);
-      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      setUsers(items);
+      const items = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          ...data,
+          loanLimit: data.loanLimit ?? data.limit ?? 0,
+        };
+      });
+      // Exclude admin account(s) from the customers list
+      const filtered = items.filter(
+        (u) => (u.role || "customer") !== "admin" && u.email !== SUPPORT_EMAIL
+      );
+      setUsers(filtered);
       setLoading(false);
     };
 
     loadUsers();
   }, []);
 
-  const saveLimit = async (userId, newLimit) => {
+  const saveLoanLimit = async (userId, newLimit) => {
+    const numeric = Number(newLimit);
+    if (isNaN(numeric) || numeric < 0) {
+      alert("Please enter a valid non-negative number for the loan limit.");
+      return;
+    }
+
     try {
       const userRef = doc(db, "users", userId);
-      await updateDoc(userRef, { limit: Number(newLimit) });
-      alert("Limit updated");
+      await updateDoc(userRef, { loanLimit: numeric });
+      alert("Loan limit updated");
       setUsers((prev) =>
-        prev.map((u) =>
-          u.id === userId ? { ...u, limit: Number(newLimit) } : u
-        )
+        prev.map((u) => (u.id === userId ? { ...u, loanLimit: numeric } : u))
       );
     } catch (err) {
       console.error(err);
-      alert("Failed to update limit");
+      alert("Failed to update loan limit");
     }
   };
 
   return (
     <div className="p-4 space-y-4">
-      <h1 className="text-lg font-bold">Customers</h1>
+      <h1 className="text-lg font-bold">Customers ({users.length})</h1>
 
       {loading && <p className="text-sm text-muted">Loading...</p>}
 
@@ -57,16 +73,18 @@ export default function Customers() {
               </p>
             </div>
             <div className="w-40">
-              <label className="text-xs text-slate-400">Limit</label>
+              <label className="text-xs text-slate-400">Loan Limit (KSH)</label>
               <div className="flex gap-2 mt-1">
                 <input
                   type="number"
-                  value={user.limit || 0}
+                  value={user.loanLimit || 0}
                   min={0}
                   onChange={(e) =>
                     setUsers((prev) =>
                       prev.map((u) =>
-                        u.id === user.id ? { ...u, limit: e.target.value } : u
+                        u.id === user.id
+                          ? { ...u, loanLimit: e.target.value }
+                          : u
                       )
                     )
                   }
@@ -74,7 +92,7 @@ export default function Customers() {
                 />
                 <button
                   className="btn-secondary"
-                  onClick={() => saveLimit(user.id, user.limit || 0)}
+                  onClick={() => saveLoanLimit(user.id, user.loanLimit || 0)}
                 >
                   Save
                 </button>

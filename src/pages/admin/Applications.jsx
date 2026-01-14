@@ -141,7 +141,10 @@ export default function Applications() {
                 // Open WhatsApp review link if available, otherwise construct one
                 const url =
                   app.reviewWhatsAppUrl ||
-                  `https://wa.me/${WHATSAPP_NUMBER.replace(/\D/g, "")}?text=${encodeURIComponent(
+                  `https://wa.me/${WHATSAPP_NUMBER.replace(
+                    /\D/g,
+                    ""
+                  )}?text=${encodeURIComponent(
                     `Application ${app.id} - KSH ${app.amount} - ${window.location.origin}/admin/applications/${app.id}`
                   )}`;
                 window.open(url, "_blank");

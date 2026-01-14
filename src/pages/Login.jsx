@@ -356,7 +356,10 @@ export default function Login() {
               Login as admin
             </button>
             {isAdminFlow && (
-              <p className="text-xs text-slate-400 mt-2">Only verified admin ({SUPPORT_EMAIL}) can access admin portal. If unverified, a verification email will be sent on login.</p>
+              <p className="text-xs text-slate-400 mt-2">
+                Only verified admin ({SUPPORT_EMAIL}) can access admin portal.
+                If unverified, a verification email will be sent on login.
+              </p>
             )}
           </div>
 

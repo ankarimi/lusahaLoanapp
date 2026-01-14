@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { db } from "../../firebase";
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  query,
+  orderBy,
+  onSnapshot,
+  deleteDoc,
+  doc,
+} from "firebase/firestore";
 
 export default function AuditLogs() {
   const [logs, setLogs] = useState([]);
@@ -44,12 +51,24 @@ export default function AuditLogs() {
             <div>
               <p className="text-sm text-muted">{l.type}</p>
               <p className="font-semibold">{l.email || l.userId || "-"}</p>
-              <p className="text-xs text-muted mt-1">{new Date(l.createdAt).toLocaleString()}</p>
+              <p className="text-xs text-muted mt-1">
+                {new Date(l.createdAt).toLocaleString()}
+              </p>
               {l.note && <p className="text-sm mt-2">{l.note}</p>}
             </div>
             <div className="text-right">
-              <button className="btn-secondary mb-2" onClick={() => navigator.clipboard.writeText(JSON.stringify(l))}>Copy</button>
-              <button className="text-sm text-red-600" onClick={() => removeLog(l.id)}>Delete</button>
+              <button
+                className="btn-secondary mb-2"
+                onClick={() => navigator.clipboard.writeText(JSON.stringify(l))}
+              >
+                Copy
+              </button>
+              <button
+                className="text-sm text-red-600"
+                onClick={() => removeLog(l.id)}
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>

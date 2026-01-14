@@ -153,7 +153,11 @@ export default function Apply() {
       try {
         const loanId = docRef.id;
         const reviewLink = `${window.location.origin}/admin/applications/${loanId}`;
-        const message = `New loan application:%0A%0AName: ${auth.currentUser.displayName || 'N/A'}%0AEmail: ${auth.currentUser.email}%0AAmount: KSH ${amount}%0ADuration: ${duration} days%0APurpose: ${purpose}%0ATotal: KSH ${totalRepayment}%0APhone: ${phone}%0AApplication ID: ${loanId}%0AReview: ${reviewLink}`;
+        const message = `New loan application:%0A%0AName: ${
+          auth.currentUser.displayName || "N/A"
+        }%0AEmail: ${
+          auth.currentUser.email
+        }%0AAmount: KSH ${amount}%0ADuration: ${duration} days%0APurpose: ${purpose}%0ATotal: KSH ${totalRepayment}%0APhone: ${phone}%0AApplication ID: ${loanId}%0AReview: ${reviewLink}`;
         const number = WHATSAPP_NUMBER.replace(/\D/g, "");
         const waUrl = `https://wa.me/${number}?text=${message}`;
 
