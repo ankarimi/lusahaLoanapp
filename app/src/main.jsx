@@ -1,7 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
-import { useAuth } from "./AuthContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Home from "./pages/Home";
@@ -10,12 +9,13 @@ import Upload from "./pages/Upload";
 import Events from "./pages/Events";
 import Explore from "./pages/Explore";
 import Profile from "./pages/Profile";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
 import { AuthProvider } from "./AuthContext";
+import Departments from "./pages/notes/Departments";
+import Levels from "./pages/notes/Levels";
+import Courses from "./pages/notes/Courses";
+import CourseNotes from "./pages/notes/CourseNotes";
+import ProtectedRoute from "./ProtectedRoute";
 import "./index.css";
-import "./pages/Login";
-import "./pages/Register";
 function MobileNav() {
   return (
     <nav className="nav">
@@ -35,14 +35,20 @@ function App() {
     <BrowserRouter>
       <MobileNav />
       <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/notes" element={<Notes />} />
-        <Route path="/upload" element={<Upload />} />
-        <Route path="/events" element={<Events />} />
-        <Route path="/explore" element={<Explore />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/login" element={<Login/>} />
-        <Route path="/register" element={<Register/>} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+
+        {/* Protected routes: require a session token */}
+        <Route path="/" element={<ProtectedRoute><Home/></ProtectedRoute>} />
+        <Route path="/notes" element={<ProtectedRoute><Notes/></ProtectedRoute>} />
+        <Route path="/notes/departments" element={<ProtectedRoute><Departments/></ProtectedRoute>} />
+        <Route path="/notes/:departmentId/levels" element={<ProtectedRoute><Levels/></ProtectedRoute>} />
+        <Route path="/notes/:departmentId/levels/:levelId/courses" element={<ProtectedRoute><Courses/></ProtectedRoute>} />
+        <Route path="/notes/courses/:courseId/notes" element={<ProtectedRoute><CourseNotes/></ProtectedRoute>} />
+        <Route path="/upload" element={<ProtectedRoute><Upload/></ProtectedRoute>} />
+        <Route path="/events" element={<ProtectedRoute><Events/></ProtectedRoute>} />
+        <Route path="/explore" element={<ProtectedRoute><Explore/></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile/></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );

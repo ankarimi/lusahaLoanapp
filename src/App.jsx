@@ -4,6 +4,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import Universities from "./pages/admin/Universities";
 import Courses from "./pages/admin/Courses";
 import AdminUsers from "./pages/admin/AdminUsers";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
   return (
@@ -12,9 +13,11 @@ export default function App() {
         <Link to="/">Dashboard</Link>
       </div>
       <Routes>
-        <Route path="/" element={<AdminDashboard />} />
-        <Route path="/universities" element={<Universities />} />
-        <Route path="/admin/courses" element={<Courses />} />        <Route path="/admin/users" element={<AdminUsers/>} />      </Routes>
+        <Route path="/" element={<ProtectedRoute><AdminDashboard/></ProtectedRoute>} />
+        <Route path="/universities" element={<ProtectedRoute><Universities/></ProtectedRoute>} />
+        <Route path="/admin/courses" element={<ProtectedRoute><Courses/></ProtectedRoute>} />
+        <Route path="/admin/users" element={<ProtectedRoute><AdminUsers/></ProtectedRoute>} />
+      </Routes>
     </BrowserRouter>
   );
 }
