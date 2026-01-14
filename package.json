@@ -4,8 +4,10 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev:admin": "vite",
+    "dev:app": "npm --prefix ./app run dev",
+    "build:admin": "vite build",
+    "build:app": "npm --prefix ./app run build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
