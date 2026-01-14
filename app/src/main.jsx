@@ -39,16 +39,86 @@ function App() {
         <Route path="/register" element={<Register />} />
 
         {/* Protected routes: require a session token */}
-        <Route path="/" element={<ProtectedRoute><Home/></ProtectedRoute>} />
-        <Route path="/notes" element={<ProtectedRoute><Notes/></ProtectedRoute>} />
-        <Route path="/notes/departments" element={<ProtectedRoute><Departments/></ProtectedRoute>} />
-        <Route path="/notes/:departmentId/levels" element={<ProtectedRoute><Levels/></ProtectedRoute>} />
-        <Route path="/notes/:departmentId/levels/:levelId/courses" element={<ProtectedRoute><Courses/></ProtectedRoute>} />
-        <Route path="/notes/courses/:courseId/notes" element={<ProtectedRoute><CourseNotes/></ProtectedRoute>} />
-        <Route path="/upload" element={<ProtectedRoute><Upload/></ProtectedRoute>} />
-        <Route path="/events" element={<ProtectedRoute><Events/></ProtectedRoute>} />
-        <Route path="/explore" element={<ProtectedRoute><Explore/></ProtectedRoute>} />
-        <Route path="/profile" element={<ProtectedRoute><Profile/></ProtectedRoute>} />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notes"
+          element={
+            <ProtectedRoute>
+              <Notes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notes/departments"
+          element={
+            <ProtectedRoute>
+              <Departments />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notes/:departmentId/levels"
+          element={
+            <ProtectedRoute>
+              <Levels />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notes/:departmentId/levels/:levelId/courses"
+          element={
+            <ProtectedRoute>
+              <Courses />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notes/courses/:courseId/notes"
+          element={
+            <ProtectedRoute>
+              <CourseNotes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/upload"
+          element={
+            <ProtectedRoute>
+              <Upload />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/events"
+          element={
+            <ProtectedRoute>
+              <Events />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/explore"
+          element={
+            <ProtectedRoute>
+              <Explore />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   );
