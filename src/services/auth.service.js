@@ -47,36 +47,55 @@ export const checkEmailAvailability = async (email) => {
  * REGISTER WITH EMAIL + PASSWORD
  */
 export const registerWithEmail = async (email, password, fullName) => {
-  const cred = await createUserWithEmailAndPassword(auth, email, password);
-  const user = cred.user;
+  try {
+    const cred = await createUserWithEmailAndPassword(auth, email, password);
+    const user = cred.user;
 
-  // Get ID token
-  const token = await user.getIdToken();
+    // Get ID token
+    const token = await user.getIdToken();
 
-  // Create Firestore profile
-  await setDoc(doc(db, "users", user.uid), {
-    uid: user.uid,
-    full_name: fullName,
-    email: user.email,
-    role: "student",
-    university_id: null,
-    department_id: null,
-    level_id: null,
-    onboarding_completed: false,
-    created_at: serverTimestamp(),
-  });
-
-  // Save session to localStorage
-  localStorage.setItem(
-    "auth_session",
-    JSON.stringify({
+    // Create Firestore profile
+    await setDoc(doc(db, "users", user.uid), {
       uid: user.uid,
+      full_name: fullName,
       email: user.email,
-      token,
-    })
-  );
+      role: "student",
+      university_id: null,
+      department_id: null,
+      level_id: null,
+      onboarding_completed: false,
+      created_at: serverTimestamp(),
+    });
 
-  return { user, token };
+    // Save session to localStorage
+    localStorage.setItem(
+      "auth_session",
+      JSON.stringify({
+        uid: user.uid,
+        email: user.email,
+        token,
+      })
+    );
+
+    return { user, token };
+  } catch (error) {
+    if (error.code === "auth/email-already-in-use") {
+      // Check if the email is associated with Google
+      const usersRef = collection(db, "users");
+      const q = query(usersRef, where("email", "==", email));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        throw new Error(
+          "This email is already registered with Google. Please try logging in with Google instead."
+        );
+      } else {
+        throw new Error(
+          "This email is already registered. Please try logging in instead."
+        );
+      }
+    }
+    throw error;
+  }
 };
 
 /**
@@ -110,41 +129,50 @@ export const loginWithEmail = async (email, password) => {
  * GOOGLE SIGN-IN
  */
 export const signInWithGoogle = async () => {
-  const provider = new GoogleAuthProvider();
-  const cred = await signInWithPopup(auth, provider);
-  const user = cred.user;
+  try {
+    const provider = new GoogleAuthProvider();
+    const cred = await signInWithPopup(auth, provider);
+    const user = cred.user;
 
-  // Get ID token
-  const token = await user.getIdToken();
+    // Get ID token
+    const token = await user.getIdToken();
 
-  // Create profile ONLY if first time
-  await setDoc(
-    doc(db, "users", user.uid),
-    {
-      uid: user.uid,
-      full_name: user.displayName,
-      email: user.email,
-      role: "student",
-      university_id: null,
-      department_id: null,
-      level_id: null,
-      onboarding_completed: false,
-      created_at: serverTimestamp(),
-    },
-    { merge: true }
-  );
+    // Create profile ONLY if first time
+    await setDoc(
+      doc(db, "users", user.uid),
+      {
+        uid: user.uid,
+        full_name: user.displayName,
+        email: user.email,
+        role: "student",
+        university_id: null,
+        department_id: null,
+        level_id: null,
+        onboarding_completed: false,
+        created_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
 
-  // Save session to localStorage
-  localStorage.setItem(
-    "auth_session",
-    JSON.stringify({
-      uid: user.uid,
-      email: user.email,
-      token,
-    })
-  );
+    // Save session to localStorage
+    localStorage.setItem(
+      "auth_session",
+      JSON.stringify({
+        uid: user.uid,
+        email: user.email,
+        token,
+      })
+    );
 
-  return { user, token };
+    return { user, token };
+  } catch (error) {
+    if (error.code === "auth/account-exists-with-different-credential") {
+      throw new Error(
+        "This email is already registered with email/password. Please try logging in with email/password instead."
+      );
+    }
+    throw error;
+  }
 };
 
 /**

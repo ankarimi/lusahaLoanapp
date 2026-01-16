@@ -18,8 +18,10 @@ import {
   signInWithGoogle,
   checkEmailAvailability, // Ensure this is exported from auth.service
 } from "../../services/auth.service";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Register() {
+  const { user, userData, loading: authLoading } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,6 +41,17 @@ export default function Register() {
 
   const controls = useAnimation();
   const navigate = useNavigate();
+
+  // Check if user is already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (userData?.onboarding_completed) {
+        navigate("/dashboard");
+      } else {
+        navigate("/onboarding");
+      }
+    }
+  }, [user, userData, authLoading, navigate]);
 
   // --- 1. Async Email Check Effect ---
   useEffect(() => {

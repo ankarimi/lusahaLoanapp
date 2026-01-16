@@ -47,20 +47,67 @@ service cloud.firestore {
       // Student upload notes
       allow create: if
         request.auth != null &&
-        request.resource.data.uploader_id == request.auth.uid;
+        request.resource.data.uploader_user_id == request.auth.uid &&
+        request.resource.data.university_id ==
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.university_id;
 
       // Student can update own notes (until approved)
       allow update: if
         request.auth != null &&
-        resource.data.uploader_id == request.auth.uid &&
+        resource.data.uploader_user_id == request.auth.uid &&
         resource.data.status == "pending";
 
-      // Admin approve/reject notes in their university
+      // Admin approve/reject/delete notes in their university
       allow update: if
         request.auth != null &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin" &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          in ["admin", "super_admin"] &&
         resource.data.university_id ==
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.university_id;
+
+      // Super admin can moderate any note
+      allow update: if
+        request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          == "super_admin";
+    }
+
+    // Note ratings subcollection
+    match /notes/{noteId}/ratings/{ratingId} {
+      allow read: if
+        get(/databases/$(database)/documents/notes/$(noteId)).data.status == "approved" &&
+        get(/databases/$(database)/documents/notes/$(noteId)).data.university_id ==
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.university_id;
+
+      allow create: if
+        request.auth != null &&
+        request.resource.data.user_id == request.auth.uid &&
+        // Check user hasn't already rated this note
+        !exists(/databases/$(database)/documents/notes/$(noteId)/ratings/$(request.auth.uid));
+    }
+
+    match /reports/{reportId} {
+      // Users can create reports for notes in their university
+      allow create: if
+        request.auth != null &&
+        request.resource.data.reporter_user_id == request.auth.uid &&
+        request.resource.data.content_type == "note" &&
+        get(/databases/$(database)/documents/notes/$(request.resource.data.content_id)).data.university_id ==
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.university_id;
+
+      // Admins can read/update reports in their university
+      allow read, update: if
+        request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          in ["admin", "super_admin"] &&
+        get(/databases/$(database)/documents/notes/$(resource.data.content_id)).data.university_id ==
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.university_id;
+
+      // Super admin can read all reports
+      allow read, update: if
+        request.auth != null &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+          == "super_admin";
     }
 
     match /events/{eventId} {
@@ -76,6 +123,11 @@ service cloud.firestore {
         request.auth != null &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
           in ["admin", "super_admin"];
+    }
+
+    match /universities/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /departments/{id} {

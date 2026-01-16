@@ -1,22 +1,47 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence, useAnimation } from "framer-motion";
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Chrome, AlertCircle, CheckCircle2 } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Chrome,
+  AlertCircle,
+  CheckCircle2,
+} from "lucide-react";
 import { loginWithEmail, signInWithGoogle } from "../../services/auth.service";
+import { useAuth } from "../../context/AuthContext";
 
 export default function Login() {
+  const { user, userData, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   // Validation State
   const [errors, setErrors] = useState({});
   // Track if a field is valid to show the green checkmark
-  const [validFields, setValidFields] = useState({ email: false, password: false });
-  
-  const controls = useAnimation(); 
+  const [validFields, setValidFields] = useState({
+    email: false,
+    password: false,
+  });
+
+  const controls = useAnimation();
   const navigate = useNavigate();
+
+  // Check if user is already logged in
+  useEffect(() => {
+    if (!authLoading && user) {
+      if (userData?.onboarding_completed) {
+        navigate("/dashboard");
+      } else {
+        navigate("/onboarding");
+      }
+    }
+  }, [user, userData, authLoading, navigate]);
 
   // --- Live Validation Logic ---
   const validateField = (name, value) => {
@@ -56,7 +81,7 @@ export default function Login() {
     // Update state
     setErrors((prev) => ({ ...prev, [name]: isValid ? "" : errorMsg }));
     setValidFields((prev) => ({ ...prev, [name]: isValid }));
-    
+
     return isValid;
   };
 
@@ -75,7 +100,7 @@ export default function Login() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    
+
     // Final check before submission
     const isEmailValid = validateField("email", email);
     const isPasswordValid = validateField("password", password);
@@ -130,7 +155,7 @@ export default function Login() {
     <div style={styles.pageContainer}>
       {/* --- Sunset Background & Particles --- */}
       <div style={styles.backgroundGradient} />
-      
+
       {particles.map((p) => (
         <motion.div
           key={p.id}
@@ -182,26 +207,44 @@ export default function Login() {
 
         <form onSubmit={handleLogin} style={styles.form}>
           {/* Email Field */}
-          <motion.div animate={controls} variants={shakeVariants} style={styles.fieldWrapper}>
+          <motion.div
+            animate={controls}
+            variants={shakeVariants}
+            style={styles.fieldWrapper}
+          >
             <div style={styles.labelRow}>
-               <label style={styles.label}>Email Address</label>
-               {validFields.email && (
-                 <motion.div 
-                   initial={{ scale: 0 }} 
-                   animate={{ scale: 1 }}
-                   style={styles.validBadge}
-                 >
-                   <CheckCircle2 size={14} color="#38A169" />
-                   <span style={{ color: "#38A169", fontSize: "11px", fontWeight: "600" }}>Valid</span>
-                 </motion.div>
-               )}
+              <label style={styles.label}>Email Address</label>
+              {validFields.email && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  style={styles.validBadge}
+                >
+                  <CheckCircle2 size={14} color="#38A169" />
+                  <span
+                    style={{
+                      color: "#38A169",
+                      fontSize: "11px",
+                      fontWeight: "600",
+                    }}
+                  >
+                    Valid
+                  </span>
+                </motion.div>
+              )}
             </div>
-            
+
             <div style={styles.inputContainer}>
-              <Mail 
-                size={18} 
-                style={styles.inputIcon} 
-                color={errors.email ? "#e74c3c" : validFields.email ? "#38A169" : "#F09819"} 
+              <Mail
+                size={18}
+                style={styles.inputIcon}
+                color={
+                  errors.email
+                    ? "#e74c3c"
+                    : validFields.email
+                    ? "#38A169"
+                    : "#F09819"
+                }
               />
               <input
                 type="email"
@@ -209,16 +252,20 @@ export default function Login() {
                 onChange={handleEmailChange}
                 style={{
                   ...styles.input,
-                  borderColor: errors.email ? "#e74c3c" : validFields.email ? "#38A169" : "rgba(0,0,0,0.1)",
+                  borderColor: errors.email
+                    ? "#e74c3c"
+                    : validFields.email
+                    ? "#38A169"
+                    : "rgba(0,0,0,0.1)",
                   backgroundColor: errors.email ? "#fff5f5" : "white",
                 }}
                 placeholder="name@example.com"
               />
             </div>
             {errors.email && (
-              <motion.span 
-                initial={{ opacity: 0, x: -10 }} 
-                animate={{ opacity: 1, x: 0 }} 
+              <motion.span
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
                 style={styles.fieldError}
               >
                 {errors.email}
@@ -227,28 +274,50 @@ export default function Login() {
           </motion.div>
 
           {/* Password Field */}
-          <motion.div animate={controls} variants={shakeVariants} style={styles.fieldWrapper}>
+          <motion.div
+            animate={controls}
+            variants={shakeVariants}
+            style={styles.fieldWrapper}
+          >
             <div style={styles.labelRow}>
               <label style={styles.label}>Password</label>
-              <div style={{ display: 'flex', gap: '10px', alignItems: 'center'}}>
+              <div
+                style={{ display: "flex", gap: "10px", alignItems: "center" }}
+              >
                 {validFields.password && (
-                   <motion.div 
-                     initial={{ scale: 0 }} 
-                     animate={{ scale: 1 }}
-                     style={styles.validBadge}
-                   >
-                     <CheckCircle2 size={14} color="#38A169" />
-                     <span style={{ color: "#38A169", fontSize: "11px", fontWeight: "600" }}>Secure</span>
-                   </motion.div>
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    style={styles.validBadge}
+                  >
+                    <CheckCircle2 size={14} color="#38A169" />
+                    <span
+                      style={{
+                        color: "#38A169",
+                        fontSize: "11px",
+                        fontWeight: "600",
+                      }}
+                    >
+                      Secure
+                    </span>
+                  </motion.div>
                 )}
-                <a href="/forgot-password" style={styles.forgotLink}>Forgot?</a>
+                <a href="/forgot-password" style={styles.forgotLink}>
+                  Forgot?
+                </a>
               </div>
             </div>
             <div style={styles.inputContainer}>
-              <Lock 
-                size={18} 
-                style={styles.inputIcon} 
-                color={errors.password ? "#e74c3c" : validFields.password ? "#38A169" : "#F09819"} 
+              <Lock
+                size={18}
+                style={styles.inputIcon}
+                color={
+                  errors.password
+                    ? "#e74c3c"
+                    : validFields.password
+                    ? "#38A169"
+                    : "#F09819"
+                }
               />
               <input
                 type={showPassword ? "text" : "password"}
@@ -256,7 +325,11 @@ export default function Login() {
                 onChange={handlePasswordChange}
                 style={{
                   ...styles.input,
-                  borderColor: errors.password ? "#e74c3c" : validFields.password ? "#38A169" : "rgba(0,0,0,0.1)",
+                  borderColor: errors.password
+                    ? "#e74c3c"
+                    : validFields.password
+                    ? "#38A169"
+                    : "rgba(0,0,0,0.1)",
                   backgroundColor: errors.password ? "#fff5f5" : "white",
                 }}
                 placeholder="••••••••"
@@ -271,24 +344,31 @@ export default function Login() {
             </div>
             {/* Live Error Message for Password */}
             {errors.password && (
-              <motion.span 
-                initial={{ opacity: 0, x: -10 }} 
-                animate={{ opacity: 1, x: 0 }} 
+              <motion.span
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
                 style={styles.fieldError}
               >
                 {errors.password}
               </motion.span>
             )}
-            
+
             {/* Password Hint (Only show if typing and invalid) */}
-            {!validFields.password && password.length > 0 && !errors.password && (
-                <span style={styles.hintText}>Must be 8+ chars, 1 uppercase, 1 lowercase</span>
-            )}
+            {!validFields.password &&
+              password.length > 0 &&
+              !errors.password && (
+                <span style={styles.hintText}>
+                  Must be 8+ chars, 1 uppercase, 1 lowercase
+                </span>
+              )}
           </motion.div>
 
           {/* Login Button */}
           <motion.button
-            whileHover={{ scale: 1.02, boxShadow: "0 10px 20px rgba(240, 152, 25, 0.3)" }}
+            whileHover={{
+              scale: 1.02,
+              boxShadow: "0 10px 20px rgba(240, 152, 25, 0.3)",
+            }}
             whileTap={{ scale: 0.98 }}
             type="submit"
             disabled={loading}

@@ -6,6 +6,7 @@ import Login from "../features/auth/Login";
 import Register from "../features/auth/Register";
 import Onboarding from "../features/auth/Onboarding";
 import NotesPage from "../features/notes/NotesPage";
+import UploadNote from "../features/notes/UploadNote";
 import EventsPage from "../features/events/EventsPage";
 import Dashboard from "../features/profile/Dashboard";
 import UsersPage from "../admin/users/UsersPage";
@@ -37,11 +38,22 @@ export const router = createBrowserRouter([
   },
 
   {
-    path: "/",
+    path: "/notes",
     element: (
       <ProtectedRoute>
         <OnboardingGuard>
           <NotesPage />
+        </OnboardingGuard>
+      </ProtectedRoute>
+    ),
+  },
+
+  {
+    path: "/notes/upload",
+    element: (
+      <ProtectedRoute>
+        <OnboardingGuard>
+          <UploadNote />
         </OnboardingGuard>
       </ProtectedRoute>
     ),

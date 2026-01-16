@@ -1,58 +1,38 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { doc, updateDoc } from "firebase/firestore";
 import { db } from "../../config/firebase";
-
-// Kenyan Universities and Colleges
-const KENYAN_INSTITUTIONS = {
-  universities: [
-    { id: "uni_001", name: "University of Nairobi" },
-    { id: "uni_002", name: "Kenyatta University" },
-    { id: "uni_003", name: "Moi University" },
-    {
-      id: "uni_004",
-      name: "Jomo Kenyatta University of Agriculture and Technology (JKUAT)",
-    },
-    { id: "uni_005", name: "Kenya Methodist University (KeMU)" },
-    { id: "uni_006", name: "Strathmore University" },
-    { id: "uni_007", name: "United States International University (USIU)" },
-    { id: "uni_008", name: "Aga Khan University" },
-    { id: "uni_009", name: "Multimedia University of Kenya (MMU)" },
-    { id: "uni_010", name: "Maseno University" },
-    { id: "uni_011", name: "Technical University of Kenya (TUK)" },
-    { id: "uni_012", name: "Karatina University" },
-    { id: "uni_013", name: "Kisii University" },
-    { id: "uni_014", name: "Mount Kenya University" },
-    { id: "uni_015", name: "Kabarak University" },
-    { id: "uni_016", name: "Laikipia University" },
-    { id: "uni_017", name: "Kca University" },
-    { id: "uni_018", name: "Nairobi Institute of Business Studies" },
-    { id: "uni_019", name: "Africana First University" },
-    { id: "uni_020", name: "Pan Africa Christian University" },
-  ],
-  colleges: [
-    {
-      id: "col_001",
-      name: "Kenya Institute of Banking and Insurance Studies (KIBIS)",
-    },
-    { id: "col_002", name: "Kenya National Police College" },
-    { id: "col_003", name: "East Africa School of Aviation" },
-    { id: "col_004", name: "Kenya Tourism Board Training Institute" },
-    { id: "col_005", name: "Nairobi Aviation College" },
-    { id: "col_006", name: "Kenya National Conservatoire of Music" },
-    { id: "col_007", name: "Kenya Polytechnic University College" },
-    { id: "col_008", name: "Mombasa Technical Training Institute" },
-    { id: "col_009", name: "Kisumu Polytechnic" },
-    { id: "col_010", name: "Nakuru Medical Training College" },
-  ],
-};
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Building2,
+  BookOpen,
+  GraduationCap,
+  ChevronRight,
+  ChevronLeft,
+  Check,
+  Loader2,
+} from "lucide-react";
+import {
+  getUniversities,
+  getDepartments,
+  getLevels,
+} from "../../services/onboarding.service";
 
 export default function Onboarding() {
   const { user, userData } = useAuth();
   const navigate = useNavigate();
+
+  // State
   const [loading, setLoading] = useState(false);
+  const [dataLoading, setDataLoading] = useState(true);
   const [step, setStep] = useState(1);
+  const [direction, setDirection] = useState(0); // For animation direction
+
+  // Data
+  const [institutions, setInstitutions] = useState([]);
+  const [departments, setDepartments] = useState([]);
+  const [levels, setLevels] = useState([]);
 
   const [formData, setFormData] = useState({
     university_id: userData?.university_id || "",
@@ -61,29 +41,56 @@ export default function Onboarding() {
     level_id: userData?.level_id || "",
   });
 
+  // Fetch Data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [unis, deps, levs] = await Promise.all([
+          getUniversities(),
+          getDepartments(),
+          getLevels(),
+        ]);
+        setInstitutions(unis);
+        setDepartments(deps);
+        setLevels(levs);
+      } catch (error) {
+        console.error("Error fetching onboarding data:", error);
+      } finally {
+        setDataLoading(false);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Background Particles
+  const [particles, setParticles] = useState([]);
+  useEffect(() => {
+    const tempParticles = [...Array(15)].map((_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100 + 100,
+      size: Math.random() * 12 + 4,
+      duration: Math.random() * 20 + 10,
+      delay: Math.random() * 5,
+    }));
+    setParticles(tempParticles);
+  }, []);
+
+  // Handlers
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === "university_id") {
-      // Find the university name
-      const allInstitutions = [
-        ...KENYAN_INSTITUTIONS.universities,
-        ...KENYAN_INSTITUTIONS.colleges,
-      ];
-      const institution = allInstitutions.find((inst) => inst.id === value);
+      const institution = institutions.find((inst) => inst.id === value);
       setFormData((prev) => ({
         ...prev,
         [name]: value,
         university_name: institution?.name || "",
       }));
     } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
+      setFormData((prev) => ({ ...prev, [name]: value }));
     }
   };
 
-  // Check if current step is complete
   const isStepComplete = () => {
     if (step === 1) return !!formData.university_id;
     if (step === 2) return !!formData.department_id;
@@ -91,12 +98,23 @@ export default function Onboarding() {
     return false;
   };
 
-  const handleComplete = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  const nextStep = () => {
+    if (step < 3) {
+      setDirection(1);
+      setStep(step + 1);
+    }
+  };
 
+  const prevStep = () => {
+    if (step > 1) {
+      setDirection(-1);
+      setStep(step - 1);
+    }
+  };
+
+  const handleComplete = async () => {
+    setLoading(true);
     try {
-      // Update user profile with onboarding data
       await updateDoc(doc(db, "users", user.uid), {
         university_id: formData.university_id,
         university_name: formData.university_name,
@@ -105,316 +123,439 @@ export default function Onboarding() {
         onboarding_completed: true,
       });
 
-      // Redirect to dashboard based on role
       const role = userData?.role || "student";
-      if (role === "admin" || role === "super_admin") {
-        navigate("/admin");
-      } else {
-        navigate("/dashboard");
-      }
+      navigate(
+        role === "admin" || role === "super_admin" ? "/admin" : "/dashboard"
+      );
     } catch (err) {
       console.error("Error completing onboarding:", err);
-      alert("Error completing onboarding. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  // Animation Variants
+  const slideVariants = {
+    enter: (direction) => ({
+      x: direction > 0 ? 50 : -50,
+      opacity: 0,
+    }),
+    center: {
+      x: 0,
+      opacity: 1,
+      transition: {
+        duration: 0.3,
+        type: "spring",
+        stiffness: 300,
+        damping: 30,
+      },
+    },
+    exit: (direction) => ({
+      x: direction > 0 ? -50 : 50,
+      opacity: 0,
+      transition: { duration: 0.2 },
+    }),
+  };
+
   return (
-    <div style={styles.container}>
-      <h2>Complete Your Profile</h2>
-      <p style={styles.subtitle}>
-        Step {step} of 3 - Let us get to know you better
-      </p>
+    <div style={styles.pageContainer}>
+      {/* Background */}
+      <div style={styles.backgroundGradient} />
+      {particles.map((p) => (
+        <motion.div
+          key={p.id}
+          style={{
+            ...styles.particle,
+            left: `${p.x}%`,
+            width: p.size,
+            height: p.size,
+          }}
+          animate={{ y: [window.innerHeight + 50, -100], opacity: [0, 0.4, 0] }}
+          transition={{
+            duration: p.duration,
+            repeat: Infinity,
+            delay: p.delay,
+            ease: "linear",
+          }}
+        />
+      ))}
 
-      <form onSubmit={handleComplete} style={styles.form}>
-        {step === 1 && (
-          <div style={styles.step}>
-            <h3>Select Your University or College</h3>
-            <select
-              name="university_id"
-              value={formData.university_id}
-              onChange={handleChange}
-              required
-              style={styles.select}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        style={styles.card}
+      >
+        {/* Progress Header */}
+        <div style={styles.progressContainer}>
+          {[1, 2, 3].map((s) => (
+            <div key={s} style={styles.stepIndicatorWrapper}>
+              <motion.div
+                animate={{
+                  backgroundColor: s <= step ? "#F09819" : "rgba(0,0,0,0.1)",
+                  scale: s === step ? 1.2 : 1,
+                }}
+                style={styles.stepCircle}
+              >
+                {s < step ? (
+                  <Check size={14} color="white" />
+                ) : (
+                  <span
+                    style={{
+                      color: s <= step ? "white" : "#999",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {s}
+                  </span>
+                )}
+              </motion.div>
+              {s < 3 && (
+                <div
+                  style={{
+                    ...styles.stepLine,
+                    backgroundColor: s < step ? "#F09819" : "#eee",
+                  }}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div style={styles.contentWrapper}>
+          <AnimatePresence mode="wait" custom={direction}>
+            {/* STEP 1: UNIVERSITY */}
+            {step === 1 && (
+              <motion.div
+                key="step1"
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                style={styles.stepContent}
+              >
+                <div style={styles.iconWrapper}>
+                  <Building2 size={32} color="#F09819" />
+                </div>
+                <h2 style={styles.title}>Select Institution</h2>
+                <p style={styles.subtitle}>
+                  Which university or college do you attend?
+                </p>
+
+                <div style={styles.selectWrapper}>
+                  <select
+                    name="university_id"
+                    value={formData.university_id}
+                    onChange={handleChange}
+                    style={styles.select}
+                    disabled={dataLoading}
+                  >
+                    <option value="">Select University...</option>
+                    {institutions.map((inst) => (
+                      <option key={inst.id} value={inst.id}>
+                        {inst.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </motion.div>
+            )}
+
+            {/* STEP 2: DEPARTMENT */}
+            {step === 2 && (
+              <motion.div
+                key="step2"
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                style={styles.stepContent}
+              >
+                <div style={styles.iconWrapper}>
+                  <BookOpen size={32} color="#F09819" />
+                </div>
+                <h2 style={styles.title}>Select Department</h2>
+                <p style={styles.subtitle}>
+                  What is your major or field of study?
+                </p>
+
+                <div style={styles.selectWrapper}>
+                  <select
+                    name="department_id"
+                    value={formData.department_id}
+                    onChange={handleChange}
+                    style={styles.select}
+                    disabled={dataLoading}
+                  >
+                    <option value="">Select Department...</option>
+                    {departments.map((dept) => (
+                      <option key={dept.id} value={dept.id}>
+                        {dept.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </motion.div>
+            )}
+
+            {/* STEP 3: LEVEL */}
+            {step === 3 && (
+              <motion.div
+                key="step3"
+                custom={direction}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                style={styles.stepContent}
+              >
+                <div style={styles.iconWrapper}>
+                  <GraduationCap size={32} color="#F09819" />
+                </div>
+                <h2 style={styles.title}>Academic Level</h2>
+                <p style={styles.subtitle}>
+                  What year or level are you currently in?
+                </p>
+
+                <div style={styles.selectWrapper}>
+                  <select
+                    name="level_id"
+                    value={formData.level_id}
+                    onChange={handleChange}
+                    style={styles.select}
+                    disabled={dataLoading}
+                  >
+                    <option value="">Select Level...</option>
+                    {levels.map((lvl) => (
+                      <option key={lvl.id} value={lvl.id}>
+                        {lvl.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Footer Actions */}
+        <div style={styles.footer}>
+          {step > 1 ? (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={prevStep}
+              style={styles.backBtn}
             >
-              <option value="">Choose Institution...</option>
-              <optgroup label="Public Universities">
-                {KENYAN_INSTITUTIONS.universities.slice(0, 7).map((uni) => (
-                  <option key={uni.id} value={uni.id}>
-                    {uni.name}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Private Universities">
-                {KENYAN_INSTITUTIONS.universities.slice(7).map((uni) => (
-                  <option key={uni.id} value={uni.id}>
-                    {uni.name}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Colleges">
-                {KENYAN_INSTITUTIONS.colleges.map((col) => (
-                  <option key={col.id} value={col.id}>
-                    {col.name}
-                  </option>
-                ))}
-              </optgroup>
-            </select>
-          </div>
-        )}
-
-        {step === 2 && (
-          <div style={styles.step}>
-            <h3>Select Your Department</h3>
-            <select
-              name="department_id"
-              value={formData.department_id}
-              onChange={handleChange}
-              required
-              style={styles.select}
-            >
-              <option value="">Choose Department...</option>
-
-              {/* Computing & Technology */}
-              <option value="dept_001">Computer Science</option>
-              <option value="dept_002">Information Technology</option>
-              <option value="dept_003">Software Engineering</option>
-              <option value="dept_004">Data Science</option>
-              <option value="dept_005">Cyber Security</option>
-              <option value="dept_006">Information Systems</option>
-
-              {/* Engineering */}
-              <option value="dept_010">Civil Engineering</option>
-              <option value="dept_011">
-                Electrical & Electronic Engineering
-              </option>
-              <option value="dept_012">Mechanical Engineering</option>
-              <option value="dept_013">Mechatronics Engineering</option>
-              <option value="dept_014">Chemical Engineering</option>
-              <option value="dept_015">Telecommunication Engineering</option>
-              <option value="dept_016">Industrial Engineering</option>
-
-              {/* Health & Medical Sciences */}
-              <option value="dept_020">Medicine & Surgery</option>
-              <option value="dept_021">Nursing</option>
-              <option value="dept_022">Clinical Medicine</option>
-              <option value="dept_023">Public Health</option>
-              <option value="dept_024">Pharmacy</option>
-              <option value="dept_025">Medical Laboratory Sciences</option>
-              <option value="dept_026">Radiography & Imaging</option>
-              <option value="dept_027">Dental Technology</option>
-
-              {/* Business & Economics */}
-              <option value="dept_030">Business Administration</option>
-              <option value="dept_031">Commerce</option>
-              <option value="dept_032">Accounting</option>
-              <option value="dept_033">Finance</option>
-              <option value="dept_034">Economics</option>
-              <option value="dept_035">
-                Procurement & Supply Chain Management
-              </option>
-              <option value="dept_036">Human Resource Management</option>
-              <option value="dept_037">Entrepreneurship</option>
-
-              {/* Law & Governance */}
-              <option value="dept_040">Law</option>
-              <option value="dept_041">Criminology & Security Studies</option>
-              <option value="dept_042">International Relations</option>
-              <option value="dept_043">Public Administration</option>
-              <option value="dept_044">Political Science</option>
-
-              {/* Education */}
-              <option value="dept_050">Education (Arts)</option>
-              <option value="dept_051">Education (Science)</option>
-              <option value="dept_052">
-                Early Childhood Development Education
-              </option>
-              <option value="dept_053">Special Needs Education</option>
-              <option value="dept_054">Educational Management</option>
-
-              {/* Agriculture & Environmental Studies */}
-              <option value="dept_060">Agriculture</option>
-              <option value="dept_061">Agribusiness Management</option>
-              <option value="dept_062">Animal Science</option>
-              <option value="dept_063">Horticulture</option>
-              <option value="dept_064">Environmental Science</option>
-              <option value="dept_065">Forestry</option>
-              <option value="dept_066">Food Science & Technology</option>
-
-              {/* Arts, Media & Humanities */}
-              <option value="dept_070">Journalism & Mass Communication</option>
-              <option value="dept_071">Film & Theatre Arts</option>
-              <option value="dept_072">Communication & Media Studies</option>
-              <option value="dept_073">Fine Art & Design</option>
-              <option value="dept_074">Music</option>
-              <option value="dept_075">Linguistics</option>
-
-              {/* Social Sciences */}
-              <option value="dept_080">Sociology</option>
-              <option value="dept_081">Psychology</option>
-              <option value="dept_082">Social Work</option>
-              <option value="dept_083">Community Development</option>
-              <option value="dept_084">Development Studies</option>
-
-              {/* Hospitality, Tourism & Sports */}
-              <option value="dept_090">Hospitality Management</option>
-              <option value="dept_091">Tourism Management</option>
-              <option value="dept_092">Hotel & Catering Management</option>
-              <option value="dept_093">Sports Science</option>
-
-              {/* TVET & Technical */}
-              <option value="dept_100">Building Construction</option>
-              <option value="dept_101">Automotive Engineering</option>
-              <option value="dept_102">Electrical Installation</option>
-              <option value="dept_103">Plumbing & Pipe Fitting</option>
-              <option value="dept_104">Welding & Fabrication</option>
-              <option value="dept_105">Fashion Design</option>
-            </select>
-          </div>
-        )}
-
-        {step === 3 && (
-          <div style={styles.step}>
-            <h3>Select Your Academic Level</h3>
-            <select
-              name="level_id"
-              value={formData.level_id}
-              onChange={handleChange}
-              required
-              style={styles.select}
-            >
-              <option value="">Choose Level...</option>
-
-              {/* TVET & College Levels */}
-              <option value="level_cert">Certificate</option>
-              <option value="level_adv_cert">Advanced Certificate</option>
-              <option value="level_dip">Diploma</option>
-              <option value="level_high_dip">Higher Diploma</option>
-
-              {/* Undergraduate */}
-              <option value="level_deg_yr1">Bachelor’s Degree – Year 1</option>
-              <option value="level_deg_yr2">Bachelor’s Degree – Year 2</option>
-              <option value="level_deg_yr3">Bachelor’s Degree – Year 3</option>
-              <option value="level_deg_yr4">Bachelor’s Degree – Year 4</option>
-              <option value="level_deg_yr5">
-                Bachelor’s Degree – Year 5 (where applicable)
-              </option>
-
-              {/* Postgraduate */}
-              <option value="level_pg_dip">Postgraduate Diploma</option>
-              <option value="level_masters">Master’s Degree</option>
-              <option value="level_phd">Doctor of Philosophy (PhD)</option>
-            </select>
-          </div>
-        )}
-
-        <div style={styles.buttonGroup}>
-          {step > 1 && (
-            <button
-              type="button"
-              onClick={() => setStep(step - 1)}
-              disabled={loading}
-              style={styles.secondaryButton}
-            >
-              Back
-            </button>
+              <ChevronLeft size={20} /> Back
+            </motion.button>
+          ) : (
+            <div />
           )}
 
           {step < 3 ? (
-            <button
-              type="button"
-              onClick={() => setStep(step + 1)}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={nextStep}
               disabled={!isStepComplete()}
-              style={styles.button}
+              style={{ ...styles.nextBtn, opacity: isStepComplete() ? 1 : 0.5 }}
             >
-              Next
-            </button>
+              Next <ChevronRight size={20} />
+            </motion.button>
           ) : (
-            <button
-              type="submit"
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleComplete}
               disabled={loading || !isStepComplete()}
-              style={styles.button}
+              style={{
+                ...styles.completeBtn,
+                opacity: isStepComplete() ? 1 : 0.5,
+              }}
             >
-              {loading ? "Completing..." : "Complete Onboarding"}
-            </button>
+              {loading ? (
+                <Loader2 className="spin" size={20} />
+              ) : (
+                "Finish Setup"
+              )}
+            </motion.button>
           )}
         </div>
-      </form>
-
-      <div style={styles.progress}>
-        <div
-          style={{ ...styles.progressBar, width: `${(step / 3) * 100}%` }}
-        ></div>
-      </div>
+      </motion.div>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    maxWidth: "500px",
-    margin: "50px auto",
-    padding: "30px",
-    border: "1px solid #ddd",
-    borderRadius: "8px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+  pageContainer: {
+    position: "relative",
+    width: "100%",
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "20px",
+    boxSizing: "border-box",
+    fontFamily: "'Inter', sans-serif",
+    overflow: "hidden",
   },
-  subtitle: {
-    color: "#666",
+  backgroundGradient: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "linear-gradient(135deg, #FF512F 0%, #F09819 100%)",
+    zIndex: -1,
+  },
+  particle: {
+    position: "absolute",
+    borderRadius: "50%",
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    pointerEvents: "none",
+    zIndex: 0,
+  },
+  card: {
+    width: "100%",
+    maxWidth: "480px",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
+    backdropFilter: "blur(20px)",
+    WebkitBackdropFilter: "blur(20px)",
+    borderRadius: "24px",
+    padding: "30px",
+    boxShadow: "0 20px 40px rgba(0, 0, 0, 0.2)",
+    zIndex: 10,
+    display: "flex",
+    flexDirection: "column",
+    minHeight: "500px", // Fixed height for smooth transitions
+  },
+  progressContainer: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: "40px",
+    padding: "0 20px",
+  },
+  stepIndicatorWrapper: {
+    display: "flex",
+    alignItems: "center",
+  },
+  stepCircle: {
+    width: "32px",
+    height: "32px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  },
+  stepLine: {
+    width: "60px",
+    height: "3px",
+    margin: "0 -2px",
+    zIndex: 1,
+  },
+  contentWrapper: {
+    flex: 1,
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepContent: {
+    width: "100%",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    textAlign: "center",
+  },
+  iconWrapper: {
+    width: "80px",
+    height: "80px",
+    backgroundColor: "rgba(240, 152, 25, 0.1)",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     marginBottom: "20px",
   },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
+  title: {
+    fontSize: "24px",
+    fontWeight: "800",
+    color: "#333",
+    marginBottom: "10px",
   },
-  step: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
+  subtitle: {
+    fontSize: "16px",
+    color: "#666",
+    marginBottom: "30px",
+    maxWidth: "80%",
+  },
+  selectWrapper: {
+    width: "100%",
+    position: "relative",
   },
   select: {
     width: "100%",
-    padding: "10px",
-    border: "1px solid #ccc",
-    borderRadius: "4px",
-    fontSize: "14px",
+    padding: "16px 20px",
+    fontSize: "16px",
+    border: "2px solid #eee",
+    borderRadius: "12px",
+    backgroundColor: "white",
+    outline: "none",
+    appearance: "none", // Remove default arrow
+    cursor: "pointer",
+    color: "#333",
+    fontWeight: "500",
+    boxShadow: "0 4px 6px rgba(0,0,0,0.02)",
+    transition: "border-color 0.2s",
   },
-  buttonGroup: {
+  footer: {
+    marginTop: "auto",
+    paddingTop: "30px",
     display: "flex",
-    gap: "10px",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
-  button: {
-    padding: "10px 20px",
-    backgroundColor: "#007bff",
+  backBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    background: "none",
+    border: "none",
+    color: "#666",
+    fontSize: "16px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+  nextBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    backgroundColor: "#333",
     color: "white",
     border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
+    padding: "12px 24px",
+    borderRadius: "30px",
     fontSize: "16px",
+    fontWeight: "600",
+    cursor: "pointer",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
   },
-  secondaryButton: {
-    padding: "10px 20px",
-    backgroundColor: "#6c757d",
+  completeBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    background: "linear-gradient(90deg, #FF512F 0%, #F09819 100%)",
     color: "white",
     border: "none",
-    borderRadius: "4px",
-    cursor: "pointer",
+    padding: "12px 24px",
+    borderRadius: "30px",
     fontSize: "16px",
-  },
-  progress: {
-    width: "100%",
-    height: "4px",
-    backgroundColor: "#e9ecef",
-    borderRadius: "2px",
-    marginTop: "20px",
-    overflow: "hidden",
-  },
-  progressBar: {
-    height: "100%",
-    backgroundColor: "#007bff",
-    transition: "width 0.3s ease",
+    fontWeight: "600",
+    cursor: "pointer",
+    boxShadow: "0 4px 15px rgba(240, 152, 25, 0.3)",
   },
 };
