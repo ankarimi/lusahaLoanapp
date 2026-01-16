@@ -19,4 +19,4 @@
   environment = { NODE_ENV = "development" }
 
 [context.branch-deploy]
-  environment = { NODE_ENV = "development" }
+  environment = { NODE_ENV = "production" }
