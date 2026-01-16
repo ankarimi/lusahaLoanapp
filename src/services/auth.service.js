@@ -5,8 +5,43 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp, getDoc } from "firebase/firestore";
+// 1. Updated Imports here
+import {
+  doc,
+  setDoc,
+  serverTimestamp,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
 import { auth, db } from "../config/firebase";
+
+/**
+ * CHECK IF EMAIL EXISTS (For Live Validation)
+ */
+export const checkEmailAvailability = async (email) => {
+  try {
+    // Reference the users collection
+    const usersRef = collection(db, "users");
+
+    // Create a query against the collection where email matches
+    const q = query(usersRef, where("email", "==", email));
+
+    // Execute the query
+    const querySnapshot = await getDocs(q);
+
+    // If querySnapshot is empty, the email is NOT in the DB (Available)
+    // If it is NOT empty, the email exists (Not Available)
+    return { available: querySnapshot.empty };
+  } catch (error) {
+    console.error("Error checking email availability:", error);
+    // In case of error (e.g., network or permission), return true
+    // so we don't block the user from trying to register.
+    return { available: true };
+  }
+};
 
 /**
  * REGISTER WITH EMAIL + PASSWORD

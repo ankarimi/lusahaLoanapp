@@ -11,10 +11,12 @@ import {
   Chrome,
   AlertCircle,
   CheckCircle2,
+  Loader2, // Added Loader icon
 } from "lucide-react";
 import {
   registerWithEmail,
   signInWithGoogle,
+  checkEmailAvailability, // Ensure this is exported from auth.service
 } from "../../services/auth.service";
 
 export default function Register() {
@@ -32,10 +34,54 @@ export default function Register() {
     password: false,
   });
 
+  // State for async email check
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+
   const controls = useAnimation();
   const navigate = useNavigate();
 
-  // --- Live Validation Logic ---
+  // --- 1. Async Email Check Effect ---
+  useEffect(() => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    // Reset email validity if user is typing
+    if (email) {
+      setValidFields((prev) => ({ ...prev, email: false }));
+      // Remove error while typing/checking
+      setErrors((prev) => ({ ...prev, email: "" }));
+    }
+
+    if (email && emailRegex.test(email)) {
+      setIsCheckingEmail(true);
+
+      // Debounce: Wait 500ms after typing stops
+      const timeoutId = setTimeout(async () => {
+        try {
+          const { available } = await checkEmailAvailability(email);
+
+          if (!available) {
+            setErrors((prev) => ({
+              ...prev,
+              email: "This email is already registered.",
+            }));
+            setValidFields((prev) => ({ ...prev, email: false }));
+          } else {
+            setValidFields((prev) => ({ ...prev, email: true }));
+          }
+        } catch (error) {
+          console.error("Check failed", error);
+        } finally {
+          setIsCheckingEmail(false);
+        }
+      }, 500);
+
+      return () => clearTimeout(timeoutId);
+    } else {
+      setIsCheckingEmail(false);
+    }
+  }, [email]);
+
+  // --- 2. Live Validation Logic (Sync) ---
   const validateField = (name, value) => {
     let errorMsg = "";
     let isValid = false;
@@ -57,12 +103,12 @@ export default function Register() {
       } else if (!emailRegex.test(value)) {
         errorMsg = "Please enter a valid email address";
       } else {
-        isValid = true;
+        // Validity is handled by useEffect for Email
+        return;
       }
     }
 
     if (name === "password") {
-      // Rules: Min 8 chars, 1 Uppercase, 1 Lowercase
       const hasUpperCase = /[A-Z]/.test(value);
       const hasLowerCase = /[a-z]/.test(value);
       const isLongEnough = value.length >= 8;
@@ -80,9 +126,14 @@ export default function Register() {
       }
     }
 
-    // Update state
-    setErrors((prev) => ({ ...prev, [name]: isValid ? "" : errorMsg }));
-    setValidFields((prev) => ({ ...prev, [name]: isValid }));
+    // Update state for non-async fields
+    if (name !== "email") {
+      setErrors((prev) => ({ ...prev, [name]: isValid ? "" : errorMsg }));
+      setValidFields((prev) => ({ ...prev, [name]: isValid }));
+    } else if (errorMsg) {
+      // If regex fails immediately, show error
+      setErrors((prev) => ({ ...prev, email: errorMsg }));
+    }
 
     return isValid;
   };
@@ -100,12 +151,13 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
 
-    // Final check before submission
-    const isNameValid = validateField("fullName", fullName);
-    const isEmailValid = validateField("email", email);
-    const isPasswordValid = validateField("password", password);
+    // Final validation check
+    const isNameValid = validFields.fullName;
+    // For email, we rely on validFields being true (set by the async check)
+    const isEmailValid = validFields.email;
+    const isPasswordValid = validFields.password;
 
-    if (!isNameValid || !isEmailValid || !isPasswordValid) {
+    if (!isNameValid || !isEmailValid || !isPasswordValid || isCheckingEmail) {
       controls.start("shake");
       return;
     }
@@ -153,7 +205,6 @@ export default function Register() {
 
   return (
     <div style={styles.pageContainer}>
-      {/* --- Sunset Background & Particles --- */}
       <div style={styles.backgroundGradient} />
 
       {particles.map((p) => (
@@ -178,7 +229,6 @@ export default function Register() {
         />
       ))}
 
-      {/* --- Main Card --- */}
       <motion.div
         initial={{ opacity: 0, y: 50, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -190,7 +240,6 @@ export default function Register() {
           <p style={styles.subtitle}>Join us and start your journey</p>
         </div>
 
-        {/* Global Error Message */}
         <AnimatePresence>
           {errors.form && (
             <motion.div
@@ -264,7 +313,7 @@ export default function Register() {
             )}
           </motion.div>
 
-          {/* Email Field */}
+          {/* Email Field with Live Check */}
           <motion.div
             animate={controls}
             variants={shakeVariants}
@@ -272,16 +321,38 @@ export default function Register() {
           >
             <div style={styles.labelRow}>
               <label style={styles.label}>Email Address</label>
-              {validFields.email && (
+
+              {/* Dynamic Badge: Checking vs Valid */}
+              {isCheckingEmail ? (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  style={styles.validBadge}
+                >
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      repeat: Infinity,
+                      duration: 1,
+                      ease: "linear",
+                    }}
+                  >
+                    <Loader2 size={14} color="#F09819" />
+                  </motion.div>
+                  <span style={{ ...styles.validText, color: "#F09819" }}>
+                    Checking...
+                  </span>
+                </motion.div>
+              ) : validFields.email ? (
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   style={styles.validBadge}
                 >
                   <CheckCircle2 size={14} color="#38A169" />
-                  <span style={styles.validText}>Valid</span>
+                  <span style={styles.validText}>Available</span>
                 </motion.div>
-              )}
+              ) : null}
             </div>
             <div style={styles.inputContainer}>
               <Mail
@@ -292,6 +363,8 @@ export default function Register() {
                     ? "#e74c3c"
                     : validFields.email
                     ? "#38A169"
+                    : isCheckingEmail
+                    ? "#F09819"
                     : "#F09819"
                 }
               />
@@ -376,7 +449,6 @@ export default function Register() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            {/* Error Message */}
             {errors.password && (
               <motion.span
                 initial={{ opacity: 0, x: -10 }}
@@ -386,7 +458,6 @@ export default function Register() {
                 {errors.password}
               </motion.span>
             )}
-            {/* Hint (Only if typing and invalid) */}
             {!validFields.password &&
               password.length > 0 &&
               !errors.password && (
@@ -404,8 +475,11 @@ export default function Register() {
             }}
             whileTap={{ scale: 0.98 }}
             type="submit"
-            disabled={loading}
-            style={styles.submitBtn}
+            disabled={loading || isCheckingEmail} // Disable if loading OR checking email
+            style={{
+              ...styles.submitBtn,
+              opacity: loading || isCheckingEmail ? 0.7 : 1,
+            }}
           >
             {loading ? (
               <motion.div
@@ -427,7 +501,6 @@ export default function Register() {
           <span style={styles.dividerLine} />
         </div>
 
-        {/* Google Button */}
         <motion.button
           whileHover={{ scale: 1.02, backgroundColor: "#fafafa" }}
           whileTap={{ scale: 0.98 }}
@@ -452,15 +525,11 @@ export default function Register() {
   );
 }
 
-// --- Animation Variants ---
+// ... (Variants and Styles remain the same as previous response, ensure they are included)
 const shakeVariants = {
-  shake: {
-    x: [0, -10, 10, -10, 10, 0],
-    transition: { duration: 0.4 },
-  },
+  shake: { x: [0, -10, 10, -10, 10, 0], transition: { duration: 0.4 } },
 };
 
-// --- Styles ---
 const styles = {
   pageContainer: {
     position: "relative",
@@ -503,11 +572,9 @@ const styles = {
     zIndex: 10,
     display: "flex",
     flexDirection: "column",
-    gap: "20px", // Slightly tighter gap for Register since there are more fields
+    gap: "20px",
   },
-  header: {
-    textAlign: "center",
-  },
+  header: { textAlign: "center" },
   title: {
     fontSize: "28px",
     fontWeight: "800",
@@ -532,16 +599,8 @@ const styles = {
     fontSize: "14px",
     overflow: "hidden",
   },
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "16px",
-  },
-  fieldWrapper: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
+  form: { display: "flex", flexDirection: "column", gap: "16px" },
+  fieldWrapper: { display: "flex", flexDirection: "column", gap: "6px" },
   labelRow: {
     display: "flex",
     justifyContent: "space-between",
@@ -556,16 +615,8 @@ const styles = {
     textTransform: "uppercase",
     letterSpacing: "0.5px",
   },
-  validBadge: {
-    display: "flex",
-    alignItems: "center",
-    gap: "4px",
-  },
-  validText: {
-    color: "#38A169",
-    fontSize: "11px",
-    fontWeight: "600",
-  },
+  validBadge: { display: "flex", alignItems: "center", gap: "4px" },
+  validText: { color: "#38A169", fontSize: "11px", fontWeight: "600" },
   inputContainer: {
     position: "relative",
     display: "flex",
@@ -643,16 +694,8 @@ const styles = {
     color: "#A0AEC0",
     margin: "4px 0",
   },
-  dividerLine: {
-    flex: 1,
-    height: "1px",
-    backgroundColor: "#E2E8F0",
-  },
-  dividerText: {
-    fontSize: "12px",
-    fontWeight: "600",
-    letterSpacing: "1px",
-  },
+  dividerLine: { flex: 1, height: "1px", backgroundColor: "#E2E8F0" },
+  dividerText: { fontSize: "12px", fontWeight: "600", letterSpacing: "1px" },
   googleBtn: {
     width: "100%",
     padding: "14px",
@@ -669,17 +712,7 @@ const styles = {
     gap: "12px",
     boxShadow: "0 2px 4px rgba(0,0,0,0.02)",
   },
-  footer: {
-    textAlign: "center",
-    marginTop: "8px",
-  },
-  footerText: {
-    fontSize: "14px",
-    color: "#718096",
-  },
-  loginLink: {
-    color: "#FF512F",
-    textDecoration: "none",
-    fontWeight: "700",
-  },
+  footer: { textAlign: "center", marginTop: "8px" },
+  footerText: { fontSize: "14px", color: "#718096" },
+  loginLink: { color: "#FF512F", textDecoration: "none", fontWeight: "700" },
 };
