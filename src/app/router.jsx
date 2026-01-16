@@ -14,6 +14,7 @@ import PendingNotes from "../admin/notes/PendingNotes";
 import AdminEvents from "../admin/events/AdminEvents";
 
 export const router = createBrowserRouter([
+  { path: "/", element: <Login /> }, // Root route redirects to login
   { path: "/login", element: <Login /> },
   { path: "/register", element: <Register /> },
 
@@ -113,4 +114,7 @@ export const router = createBrowserRouter([
       </ProtectedRoute>
     ),
   },
+
+  // Catch-all route for unmatched paths
+  { path: "*", element: <Login /> },
 ]);

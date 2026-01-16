@@ -165,7 +165,18 @@ In Netlify Dashboard:
    - VITE_FIREBASE_AUTH_DOMAIN
    - etc.
 
-### 3. Deploy
+### 3. SPA Routing Configuration
+
+This app uses client-side routing. The `_redirects` file in the `public` folder ensures all routes are handled by `index.html`:
+
+```
+public/_redirects
+/*    /index.html   200
+```
+
+This file is automatically copied to the build output and tells Netlify to serve `index.html` for all routes, allowing React Router to handle navigation.
+
+### 4. Deploy
 
 ```bash
 netlify deploy --prod
